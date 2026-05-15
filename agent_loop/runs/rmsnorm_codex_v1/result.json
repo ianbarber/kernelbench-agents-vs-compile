@@ -1,0 +1,44 @@
+{
+  "cli": "codex",
+  "task": "rmsnorm",
+  "run_id": "rmsnorm_codex_v1",
+  "wall_clock_s": 501.0626478958875,
+  "mean_gpu_util_pct": 5.220618556701031,
+  "gpu_util_n_samples": 485,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999999999837174,
+      "l1_rel": 1.1679134992448326e-08,
+      "rmse": 5.7220458984375e-06,
+      "reasons": []
+    },
+    "correctness_strict": {
+      "pass": true,
+      "cos_sim": 0.9999999999837174,
+      "l1_rel": 1.1679134992448326e-08,
+      "rmse": 5.7220458984375e-06,
+      "reasons": []
+    },
+    "mutates_x": false,
+    "mutates_residual": false,
+    "mutates_weight": false,
+    "deterministic": true,
+    "determinism_rmse": 0.0,
+    "candidate_us": 31.71199932694435,
+    "reference_us": 171.03999853134155,
+    "inductor_baseline_us": 35.80800071358681,
+    "speedup_vs_inductor": 1.1291625086268924,
+    "verdict": "PASS_STRICT"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/rmsnorm_codex_v1/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/rmsnorm_codex_v1",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/rmsnorm_codex_v1",
+  "started_at": "2026-05-15T02:23:02.840508+00:00",
+  "ended_at": "2026-05-15T02:31:23.903162+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

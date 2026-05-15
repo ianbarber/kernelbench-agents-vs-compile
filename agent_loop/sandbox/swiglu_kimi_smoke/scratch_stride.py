@@ -1,0 +1,52 @@
+import torch
+import triton
+import triton.language as tl
+
+SHAPE = (1, 512, 6144)
+DTYPE = torch.bfloat16
+SEED = 0xC0FFEE
+
+g = torch.Generator(device="cuda")
+g.manual_seed(SEED)
+x = torch.randn(SHAPE, device="cuda", dtype=DTYPE, generator=g)
+y = torch.randn(SHAPE, device="cuda", dtype=DTYPE, generator=g)
+n_elements = x.numel()
+
+@triton.jit
+def swiglu_kernel_stride(x_ptr, y_ptr, out_ptr, n_elements, BLOCK_SIZE: tl.constexpr, STRIDE: tl.constexpr):
+    pid = tl.program_id(axis=0)
+    for s in range(STRIDE):
+        block_start = (pid * STRIDE + s) * BLOCK_SIZE
+        offsets = block_start + tl.arange(0, BLOCK_SIZE)
+        mask = offsets < n_elements
+        x = tl.load(x_ptr + offsets, mask=mask, eviction_policy="evict_first").to(tl.float32)
+        y = tl.load(y_ptr + offsets, mask=mask, eviction_policy="evict_first").to(tl.float32)
+        silu = x * tl.sigmoid(x)
+        out = silu * y
+        tl.store(out_ptr + offsets, out.to(tl.bfloat16), mask=mask, eviction_policy="evict_last")
+
+out = torch.empty_like(x)
+
+configs = []
+for BLOCK_SIZE in [32, 64, 128]:
+    for STRIDE in [2, 4, 8]:
+        for num_warps in [2, 4, 8]:
+            total_per_block = BLOCK_SIZE * STRIDE
+            grid = (triton.cdiv(n_elements, total_per_block),)
+            try:
+                for _ in range(10):
+                    swiglu_kernel_stride[grid](x, y, out, n_elements, BLOCK_SIZE=BLOCK_SIZE, STRIDE=STRIDE, num_warps=num_warps)
+                torch.cuda.synchronize()
+                t = triton.testing.do_bench(
+                    lambda: swiglu_kernel_stride[grid](x, y, out, n_elements, BLOCK_SIZE=BLOCK_SIZE, STRIDE=STRIDE, num_warps=num_warps),
+                    warmup=25,
+                    rep=100,
+                    return_mode="median",
+                ) * 1000.0
+                configs.append((BLOCK_SIZE, STRIDE, num_warps, t))
+                print(f"BS={BLOCK_SIZE}, STRIDE={STRIDE}, warps={num_warps}: {t:.2f} us")
+            except Exception as e:
+                print(f"BS={BLOCK_SIZE}, STRIDE={STRIDE}, warps={num_warps}: FAILED {e}")
+
+best = min(configs, key=lambda x: x[3])
+print(f"Best: BS={best[0]}, STRIDE={best[1]}, warps={best[2]}, {best[3]:.2f} us")

@@ -1,0 +1,32 @@
+{
+  "cli": "kimi",
+  "task": "swiglu",
+  "run_id": "swiglu_kimi_smoke",
+  "wall_clock_s": 1138.3344903877005,
+  "mean_gpu_util_pct": 3.0915684496826836,
+  "gpu_util_n_samples": 1103,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999958666720676,
+      "l1_rel": 0.0014892624458298087,
+      "rmse": 0.0017213962273672223,
+      "reasons": []
+    },
+    "candidate_us": 105.43999820947647,
+    "reference_us": 128.51200252771378,
+    "inductor_baseline_us": 361.3154750000003,
+    "speedup_vs_inductor": 3.4267401473412287,
+    "verdict": "PASS"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/swiglu_kimi_smoke/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_kimi_smoke",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/swiglu_kimi_smoke",
+  "started_at": "2026-05-14T23:36:44.153842+00:00",
+  "ended_at": "2026-05-14T23:55:42.488340+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

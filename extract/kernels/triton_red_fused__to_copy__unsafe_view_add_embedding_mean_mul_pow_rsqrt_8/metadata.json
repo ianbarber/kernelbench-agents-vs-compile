@@ -1,0 +1,105 @@
+{
+  "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+  "found_in": [
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "kind": "triton",
+      "total_us": 64.752,
+      "pct_total": 0.0036274633624323723,
+      "invocations": 10,
+      "mean_us": 6.475199999999999,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            512,
+            2048
+          ],
+          [
+            1,
+            512
+          ],
+          [
+            151936,
+            2048
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            2048
+          ],
+          [
+            1,
+            512,
+            2048
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            1048576,
+            2048,
+            1
+          ],
+          [
+            512,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1048576,
+            2048,
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "c10::BFloat16",
+          "long int",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/md/cmdhimfokpbaxqk7ah7r3rqxjuw7tdvv3fvtrzv6wzfrvovwtxer.py",
+        "kernel_hash": "cmdhimfokpbaxqk7ah7r3rqxjuw7tdvv3fvtrzv6wzfrvovwtxer",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=2,R0_BLOCK=1024"
+      }
+    }
+  }
+}

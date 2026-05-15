@@ -1,0 +1,9 @@
+{
+  "task": "sdpa_prelude",
+  "label_to_author": {
+    "A": "kimi",
+    "B": "claude",
+    "C": "codex",
+    "D": "inductor"
+  }
+}

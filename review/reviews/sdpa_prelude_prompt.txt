@@ -1,0 +1,1290 @@
+# Code review: sdpa_prelude Triton kernels
+
+You are reviewing four candidate Triton kernel implementations of the same task. Three were written by AI coding agents; one was emitted by torch.inductor. **You do not know which is which.** Review them all on their merits.
+
+Inductor context: NOTE: inductor splits the SDPA prelude across ~6 kernels (3x cuBLAS mm, 2x per-head RMSNorm+RoPE, 2x GQA-expand, 1x causal mask). The file shown is the single dominant Triton kernel (GQA expand, where_3), which is ~25% of prefill walltime. The agent candidates are full single-file modules that fuse the whole prelude, so they will *look* much bigger -- this is structural, not bloat. Judge each on its own terms.
+
+## Task description
+
+# Task: Beat inductor's SDPA-prelude (Q/K/V + RoPE + GQA-expand + mask)
+
+## What
+
+Write a fast GPU kernel (or composition of kernels) that produces the
+four tensors the next `scaled_dot_product_attention` call consumes,
+starting from the post-residual-RMSNorm `hidden_states` of a Qwen3-1.7B
+attention block:
+
+```
+                                    +-----------------------+
+hidden_states  --(W_Q proj)----+--> | per-head RMSNorm + RoPE | --> q  (1, 16, 512, 128)
+                               |    +-----------------------+
+                               |    +-----------------------+
+               --(W_K proj)----+--> | per-head RMSNorm + RoPE | --> k  (1, 16, 512, 128)
+                               |    | + GQA expand (8 -> 16)  |
+                               |    +-----------------------+
+                               |    +-----------------------+
+               --(W_V proj)----+--> | GQA expand (8 -> 16)    | --> v  (1, 16, 512, 128)
+                               |    +-----------------------+
+                                    +-----------------------+
+attention_mask  --------------+---> | causal + padding mask   | --> mask (1, 1, 512, 512)
+                              |     +-----------------------+
+position_ids ---inv_freq------+ (feeds RoPE)
+```
+
+This is everything *between* the post-RMSNorm `hidden_states` and the
+inputs to `aten._scaled_dot_product_efficient_attention`. **Note**:
+this task is **not** about attention itself — the attention kernel is
+out of scope (and disallowed; see "Forbidden" below).
+
+In inductor's output for prefill_512_b1, the prelude is:
+
+  * 3 × `extern_kernels.mm` (cuBLAS Q/K/V projections)
+  * `triton_per_fused..._1` — Q per-head RMSNorm + RoPE
+  * `triton_per_fused..._2` — K per-head RMSNorm + RoPE
+  * `triton_poi_fused..._where_3` — KV GQA-expansion (called twice, K & V)
+  * `triton_poi_fused..._where_4` — causal+padding mask construction
+
+The headline kernel `_where_3` consumes **24.99% of prefill_512_b1
+walltime** (across all call sites). The full prelude is roughly **40%**
+of prefill if you include the GEMMs and the other Triton kernels.
+
+The eager PyTorch reference is in `reference.py`.
+
+## Where to put your code
+
+Produce `candidate.py` in this directory, exposing:
+
+```python
+import torch
+from typing import Tuple
+
+def run(
+    hidden_states: torch.Tensor,   # (1, 512, 2048) bf16
+    w_q: torch.Tensor,             # (2048, 2048)   bf16   F.linear style: out = h @ w.T
+    w_k: torch.Tensor,             # (1024, 2048)   bf16
+    w_v: torch.Tensor,             # (1024, 2048)   bf16
+    w_q_norm: torch.Tensor,        # (128,)         bf16   per-head RMSNorm scale
+    w_k_norm: torch.Tensor,        # (128,)         bf16
+    inv_freq: torch.Tensor,        # (64,)          fp32   RoPE inverse frequencies
+    position_ids: torch.Tensor,    # (1, 512)       int64
+    attention_mask: torch.Tensor,  # (1, 512)       int64  1=keep, 0=pad
+    eps: float = 1e-6,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Returns:
+      q     (1, 16, 512, 128) bf16
+      k     (1, 16, 512, 128) bf16    GQA-expanded
+      v     (1, 16, 512, 128) bf16    GQA-expanded
+      mask  (1,  1, 512, 512) bf16    additive (0 / -inf), causal + padding
+    """
+```
+
+**All inputs are read-only.** Do not mutate any of them. Return new
+tensors (or tensors that do not alias inputs).
+
+## Canonical input shapes (prefill_512_b1, Qwen3-1.7B)
+
+| name              | shape              | dtype  |
+|-------------------|--------------------|--------|
+| hidden_states     | (1, 512, 2048)     | bf16   |
+| w_q               | (2048, 2048)       | bf16   |
+| w_k               | (1024, 2048)       | bf16   |
+| w_v               | (1024, 2048)       | bf16   |
+| w_q_norm          | (128,)             | bf16   |
+| w_k_norm          | (128,)             | bf16   |
+| inv_freq          | (64,)              | fp32   |
+| position_ids      | (1, 512)           | int64  |
+| attention_mask    | (1, 512)           | int64  |
+
+## Algorithm details
+
+1. **QKV projection.** Standard `F.linear`-style: each output is
+   `hidden_states @ w.T`. The reference uses `torch.as_strided` to
+   give cuBLAS the fast B-transposed view (a naive `h @ w.T` hits a
+   ~5× slower algo on this hardware — see CHOICE.md for the trick).
+
+2. **Reshape to (B, H, S, D).** Q-proj output `(B, S, 2048)` → view
+   `(B, S, 16, 128)` → transpose to `(B, 16, S, 128)`. Same for K
+   `(B, 8, S, 128)` and V `(B, 8, S, 128)`.
+
+3. **Per-head RMSNorm.** For Q and K (NOT V), normalise over the
+   head_dim=128 axis:
+   ```
+   var = x.pow(2).mean(dim=-1, keepdim=True)     # fp32
+   out = x * rsqrt(var + eps) * weight            # weight is (128,)
+   ```
+   All math in fp32, cast to bf16 on store. Matches inductor's
+   `per_fused..._1` / `_2`.
+
+4. **RoPE construction & apply.** Build cos/sin tables from
+   `position_ids` and `inv_freq`:
+   ```
+   freqs = position_ids[..., None].float() * inv_freq[None]   # (B, S, 64)
+   emb   = cat([freqs, freqs], dim=-1)                        # (B, S, 128)
+   cos   = emb.cos()         # bf16, broadcast (B, 1, S, D) over heads
+   sin   = emb.sin()
+   ```
+   Apply to Q and K:
+   ```
+   rotate_half(x) = cat([-x[..., D//2:], x[..., :D//2]], dim=-1)
+   x_rot          = x * cos + rotate_half(x) * sin
+   ```
+
+5. **GQA expansion (K & V).** From `(B, 8, S, 128)` to `(B, 16, S, 128)`
+   by replicating each KV head over `groups = 16/8 = 2` consecutive
+   Q-head positions. Inductor uses `head // 2` indexing — the natural
+   `repeat_interleave(2, dim=1)`.
+
+6. **Causal + padding mask.** Shape `(B, 1, S, S)` bf16:
+   ```
+   mask[b, 0, q, k] = 0.0 if (k <= q) and (attention_mask[b, k] != 0)
+                    else float("-inf")
+   ```
+
+## How to evaluate
+
+Run `python harness.py` from this directory. The harness:
+
+1. Builds canonical inputs (deterministic seed).
+2. Imports your `candidate.run`.
+3. **Mutation check**: confirms every input tensor is bytewise
+   unchanged. `FAIL_MUTATION` aborts the run.
+4. **Determinism check**: calls `run(...)` twice on identical inputs
+   and requires every output to match in fp32 to better than 1e-6
+   RMSE. `FAIL_NONDETERMINISTIC` aborts.
+5. **Correctness check vs `reference.run`** against two tolerance
+   tiers, **per output tensor**:
+   - `standard`: cos_sim ≥ 0.95, l1_rel ≤ 0.05, rmse ≤ 0.10
+   - `strict`  : cos_sim ≥ 0.99, l1_rel ≤ 0.01, rmse ≤ 0.01
+
+   The mask tensor has `-inf` entries; the harness internally replaces
+   `-inf` with `-1e4` for the correctness reduction (so cos_sim stays
+   finite). The candidate must still produce real `-inf` entries
+   (anything below ~-1e3 in the mask will be visually equivalent
+   to "-inf" for SDPA's softmax).
+6. If standard passes, benchmark with
+   `triton.testing.do_bench(..., return_mode="median")` (25 warmup,
+   100 reps) and print median latency in microseconds.
+7. Prints a JSON summary.
+
+Verdict ladder (highest → lowest):
+
+- `PASS_STRICT` — passes strict tolerance on all 4 outputs + non-mutating + deterministic.
+- `PASS`        — passes standard tolerance + non-mutating + deterministic.
+- `FAIL_MUTATION`
+- `FAIL_NONDETERMINISTIC`
+- `FAIL_CORRECTNESS`
+- `ERROR`
+
+**Aim for `PASS_STRICT`.** Doing the reductions and rsqrt in fp32 (what
+inductor does) is well within strict tolerance. bf16-internal
+reductions on the 128-element head_dim are tight but usually OK; bf16
+reductions on longer axes will drift.
+
+## Target
+
+The codegen-vs-codegen baseline — inductor's prelude as a sequential
+chain of 3 cuBLAS GEMMs + 5 Triton kernels — measured standalone with
+`triton.testing.do_bench(..., return_mode="median")` runs in
+**~4046 µs** on this hardware. That is the number to beat. The harness
+reports `speedup_vs_inductor = 4045.73 / candidate_us`.
+
+Per-component breakdown of the baseline (microbench median µs):
+
+| component         | µs       | notes                                |
+|-------------------|---------:|--------------------------------------|
+| q_proj_mm         |   610    | cuBLAS, (512×2048) @ (2048×2048)     |
+| k_proj_mm         |   776    | cuBLAS, (512×2048) @ (2048×1024)     |
+| v_proj_mm         |  1539    | cuBLAS, same shape as k              |
+| q_rmsnorm_rope    |    30    | inductor's `per_fused..._1`          |
+| k_rmsnorm_rope    |    18    | inductor's `per_fused..._2`          |
+| kv_expand_k       |    24    | inductor's `where_3` on K            |
+| kv_expand_v       |    24    | inductor's `where_3` on V            |
+| causal_mask       |     9    | inductor's `where_4`                 |
+| **full chain**    | **4046** |                                      |
+
+The GEMMs dominate — most of your improvement headroom is in **reducing
+the work the GEMMs have to do** (e.g. fused QKV mm, or skipping the
+GQA-expansion materialisation entirely if you eventually go for a
+fused-attention design — see "Allowed approaches" below).
+
+Eager reference latency on this hardware: **~2000-4500 µs** (highly
+variable across runs — observed median ~2-4.5 ms in do_bench). The
+eager path uses identical cuBLAS calls plus PyTorch primitives for
+RMSNorm/RoPE/expand/mask, so most of its time is in the same three
+GEMMs. The variability comes from cuBLAS algo selection and the
+unified-memory residency state — don't read too much into any single
+number. What matters: even the naive eager reference is in the same
+ballpark as inductor's emitted chain, so the floor for a useful
+speedup is not very high. **A reasonable Triton-fused RoPE+RMSNorm
+that drops the GQA materialisation entirely should clear 3000 µs**.
+
+## Stop-early policy
+
+You have up to **5 attempts** at `python harness.py`. **As soon as you
+get a `PASS_STRICT` that beats `~4000 µs`, stop and submit.** Don't
+spend further attempts grinding for the last 5% — the comparison this
+task feeds into cares much more about whether you reached `PASS_STRICT`
+under-baseline than whether you reached the absolute hardware limit.
+
+## Forbidden
+
+- `torch.compile`, `@torch.compile`, `torch.jit.script`, `torch.jit.trace`.
+  We are measuring **your** codegen, not the inductor compiler.
+
+- **Any** scaled-dot-product-attention op or backend. Specifically:
+    - `torch.nn.functional.scaled_dot_product_attention`
+    - `torch.ops.aten._scaled_dot_product_efficient_attention`
+    - `torch.ops.aten._scaled_dot_product_flash_attention`
+    - `torch.ops.aten.scaled_dot_product_attention`
+    - cuDNN flash attention / `_efficient_attention_forward`
+
+  These are not what this task measures and would defeat the
+  codegen-vs-codegen comparison. The harness scans `candidate.py`
+  textually for these tokens and refuses to run if any are present.
+
+- Calling out to `reference.run` (defeats the purpose).
+- Mutating any of the input tensors.
+- Non-deterministic kernels (e.g. atomic adds in non-associative order).
+
+## Allowed approaches
+
+- **Triton** kernels via `triton.jit` — the recommended path, matches
+  inductor's structure. You can write one big Triton kernel that does
+  RMSNorm + RoPE + GQA expand for Q (and similarly for K, V), or split
+  into multiple smaller kernels.
+
+- **cuBLAS via `torch.mm`** (with the `as_strided` trick, see
+  reference.py) — this is what inductor does for the projections.
+  Writing a custom GEMM that beats cuBLAS at (512×2048)@(2048×2048) bf16
+  on Blackwell is unlikely to succeed; we recommend keeping the
+  projection GEMMs as cuBLAS calls.
+
+- **Raw CUDA** via `torch.utils.cpp_extension.load_inline` or similar.
+
+- **Flash-Attention-style absorbed-prelude designs** — this is the
+  biggest potential win on paper. The idea: instead of materialising
+  Q, K, V, mask as separate tensors that get passed to SDPA, write your
+  own fused kernel that **computes attention directly from the
+  hidden_states + weights** and never materialises the GQA-expanded
+  K/V or the (S × S) mask. **However**: if you go that route, you must
+  NOT use any `scaled_dot_product_attention` op family (see Forbidden).
+  You'd have to write the attention math yourself. **This is harder
+  than it sounds** — and you still need to produce `(q, k, v, mask)`
+  as the task contract, so you'd be writing fused attention *and* also
+  exposing the four output tensors. Unless you have a clear plan, stay
+  with the simpler decomposition.
+
+## Hardware context
+
+NVIDIA GB10 (Blackwell, sm_121), 48 SMs, unified LPDDR5X (~273 GB/s
+peak). PyTorch 2.12 nightly cu128, Triton 3.7. The GEMMs are
+compute-bound (this hardware's bf16 throughput); the Triton kernels are
+all bandwidth-bound.
+
+## Profiling tools available
+
+- `triton.testing.do_bench` — preferred microbenchmark.
+- `nsys`, `ncu` — system / kernel profilers (slower; use sparingly).
+- You may write your own scratch scripts; just make sure `candidate.py`
+  is the final artifact in this directory.
+
+Good luck.
+
+## Eager reference implementation
+
+```python
+"""Eager PyTorch reference for the SDPA-prelude fused op (Qwen3-1.7B layout).
+
+This matches inductor's prelude for `aten._scaled_dot_product_efficient_attention`:
+it takes the post-residual-RMSNorm `hidden_states` and produces the four tensors
+that SDPA consumes:
+
+    q     : (1, 16, S, 128)  bf16   query, RoPE-applied, per-head RMSNormed
+    k     : (1, 16, S, 128)  bf16   key, same as Q, GQA-expanded from 8 KV heads
+    v     : (1, 16, S, 128)  bf16   value, GQA-expanded
+    mask  : (1, 1, S, S)     bf16   additive causal+padding mask (0 / -inf)
+
+The corresponding inductor kernels (prefill_512_b1) are:
+  * `extern_kernels.mm`              -- Q/K/V projection GEMMs (cuBLAS)
+  * `triton_per_fused..._1`          -- Q RoPE + per-head RMSNorm
+  * `triton_per_fused..._2`          -- K RoPE + per-head RMSNorm
+  * `triton_poi_fused..._where_3`    -- GQA expansion (KV: 8 heads -> 16) ×2
+                                         (the kernel that dominates at 24.99%)
+  * `triton_poi_fused..._where_4`    -- causal-mask construction (9.24%)
+                                         (writes to two mask buffers; we expose
+                                          one — both are identical)
+
+The total prelude (excluding SDPA itself) sums to ~5.4% + 24.99% + 9.24% =
+roughly 40% of prefill_512_b1 if we count both `_where_3` invocations and
+both per_fused RoPE kernels — and that's why this task exists.
+
+Contract notes:
+  - The inductor flow keeps the Q-projection mm output (buf2) as a flat
+    (512, 2048) bf16 buffer, then reshapes to (1, 16, 512, 128) via
+    a per-head-RMSNorm-and-RoPE Triton kernel. We do the same.
+  - The K/V projections are (512, 1024) bf16; K goes through its own
+    per-head RMSNorm+RoPE; V is just reshaped. Both get GQA-expanded
+    8 -> 16 by replicating along the head axis (each KV head paired
+    with 2 Q heads).
+  - The causal mask is `0` where (q_pos >= k_pos) AND (attention_mask
+    at k_pos != 0), `-inf` elsewhere. Inductor stores it as bf16
+    (matches what SDPA expects).
+  - Inputs are read-only; we MUST NOT mutate them.
+  - All reductions/norms done in fp32, cast back to bf16 on the store.
+"""
+from __future__ import annotations
+
+from typing import Tuple
+
+import torch
+
+EPS_DEFAULT = 1e-6
+NUM_Q_HEADS = 16
+NUM_KV_HEADS = 8
+HEAD_DIM = 128
+GQA_GROUP = NUM_Q_HEADS // NUM_KV_HEADS  # 2
+
+
+def _rms_per_head(x: torch.Tensor, weight: torch.Tensor, eps: float) -> torch.Tensor:
+    """Per-(head, position) RMSNorm over the head_dim=128 axis.
+
+    Args:
+        x: bf16, shape (..., 128).
+        weight: bf16, shape (128,).
+    Returns:
+        bf16 tensor of x's shape.
+    """
+    x_f32 = x.to(torch.float32)
+    var = x_f32.pow(2).mean(dim=-1, keepdim=True)
+    inv = torch.rsqrt(var + eps)
+    return (x_f32 * inv * weight.to(torch.float32)).to(x.dtype)
+
+
+def _apply_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+    """Apply RoPE: x * cos + rotate_half(x) * sin.
+
+    Args:
+        x: (B, H, S, D) bf16.
+        cos, sin: (1, 1, S, D) bf16 broadcastable over (B, H).
+    Returns:
+        bf16 tensor of x's shape.
+    """
+    out_dtype = x.dtype
+    x_f32 = x.to(torch.float32)
+    cos_f32 = cos.to(torch.float32)
+    sin_f32 = sin.to(torch.float32)
+    half = x_f32.shape[-1] // 2
+    x1 = x_f32[..., :half]
+    x2 = x_f32[..., half:]
+    rotated = torch.cat([-x2, x1], dim=-1)
+    return (x_f32 * cos_f32 + rotated * sin_f32).to(out_dtype)
+
+
+def _build_rope_tables(
+    position_ids: torch.Tensor,
+    inv_freq: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Build cos / sin tables of shape (1, 1, S, head_dim) bf16.
+
+    Args:
+        position_ids: (B, S) int64.
+        inv_freq: (head_dim // 2,) fp32.
+    """
+    # inv_freq: (D/2,) -> (1, D/2)
+    # position_ids: (B, S) -> (B, S, 1)
+    freqs = position_ids.to(torch.float32).unsqueeze(-1) * inv_freq.unsqueeze(0)
+    # (B, S, D/2) -> concat to (B, S, D)
+    emb = torch.cat([freqs, freqs], dim=-1)
+    cos = emb.cos()
+    sin = emb.sin()
+    # Reshape to (B, 1, S, D) so it broadcasts across heads.
+    cos = cos.unsqueeze(1).to(torch.bfloat16)
+    sin = sin.unsqueeze(1).to(torch.bfloat16)
+    return cos, sin
+
+
+def _build_causal_mask(
+    attention_mask: torch.Tensor,
+    seq_len: int,
+) -> torch.Tensor:
+    """Build the (1, 1, S, S) additive bf16 mask used by SDPA.
+
+    `mask[b, 0, q, k] = 0` if (q >= k) and attention_mask[b, k] != 0
+                       else -inf.
+
+    Inductor's `_where_4` builds exactly this and writes it to bf16 storage.
+    """
+    device = attention_mask.device
+    B = attention_mask.shape[0]
+    q_idx = torch.arange(seq_len, device=device).view(1, 1, seq_len, 1)
+    k_idx = torch.arange(seq_len, device=device).view(1, 1, 1, seq_len)
+    causal = (k_idx <= q_idx)  # (1, 1, S, S) bool
+    keep_k = (attention_mask != 0).view(B, 1, 1, seq_len)  # (B, 1, 1, S) bool
+    keep = causal & keep_k  # (B, 1, S, S)
+    out = torch.where(
+        keep,
+        torch.zeros((), device=device, dtype=torch.float32),
+        torch.full((), float("-inf"), device=device, dtype=torch.float32),
+    )
+    return out.to(torch.bfloat16)
+
+
+def run(
+    hidden_states: torch.Tensor,
+    w_q: torch.Tensor,
+    w_k: torch.Tensor,
+    w_v: torch.Tensor,
+    w_q_norm: torch.Tensor,
+    w_k_norm: torch.Tensor,
+    inv_freq: torch.Tensor,
+    position_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    eps: float = EPS_DEFAULT,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Produce Q, K, V, mask tensors ready for SDPA.
+
+    Args:
+        hidden_states: (B, S, hidden=2048) bf16 — post-residual-RMSNorm.
+        w_q: (2048, 2048) bf16  — Q projection weight (in the F.linear sense:
+            out = hidden @ w_q.T).
+        w_k: (1024, 2048) bf16  — K projection weight.
+        w_v: (1024, 2048) bf16  — V projection weight.
+        w_q_norm: (128,) bf16   — per-head Q RMSNorm scale.
+        w_k_norm: (128,) bf16   — per-head K RMSNorm scale.
+        inv_freq: (64,) fp32    — RoPE inverse frequencies (half head_dim).
+        position_ids: (B, S) int64.
+        attention_mask: (B, S) int64 — 1=keep, 0=pad.
+        eps: RMSNorm epsilon.
+
+    Returns:
+        (q, k, v, mask):
+            q     : (B, 16, S, 128) bf16
+            k     : (B, 16, S, 128) bf16   (GQA-expanded from 8 KV heads)
+            v     : (B, 16, S, 128) bf16   (GQA-expanded)
+            mask  : (B,  1, S, S)   bf16   additive (0 / -inf)
+    """
+    B, S, hidden = hidden_states.shape
+    assert hidden == NUM_Q_HEADS * HEAD_DIM, hidden  # 2048 = 16 * 128
+    assert w_q.shape == (NUM_Q_HEADS * HEAD_DIM, hidden), w_q.shape
+    assert w_k.shape == (NUM_KV_HEADS * HEAD_DIM, hidden), w_k.shape
+    assert w_v.shape == (NUM_KV_HEADS * HEAD_DIM, hidden), w_v.shape
+
+    # --- QKV projections (cuBLAS; matches extern_kernels.mm in inductor). ---
+    # `linear` is hidden @ w.T. We mimic inductor's `reinterpret_tensor` trick
+    # (stride-swap to (in_features, out_features)) which routes to the fast
+    # cuBLAS algo. A naive `hidden @ w.T` on Blackwell bf16 hits a 4-5x slower
+    # path -- using as_strided keeps the reference latency honest.
+    hidden_flat = hidden_states.reshape(B * S, hidden)
+    w_q_T = torch.as_strided(w_q, (hidden, NUM_Q_HEADS * HEAD_DIM), (1, hidden))
+    w_k_T = torch.as_strided(w_k, (hidden, NUM_KV_HEADS * HEAD_DIM), (1, hidden))
+    w_v_T = torch.as_strided(w_v, (hidden, NUM_KV_HEADS * HEAD_DIM), (1, hidden))
+    q_flat = torch.mm(hidden_flat, w_q_T)  # (B*S, 2048)
+    k_flat = torch.mm(hidden_flat, w_k_T)  # (B*S, 1024)
+    v_flat = torch.mm(hidden_flat, w_v_T)  # (B*S, 1024)
+
+    # --- Reshape to per-head form: (B, S, n_heads, head_dim) then transpose
+    # to (B, n_heads, S, head_dim).
+    q = q_flat.view(B, S, NUM_Q_HEADS, HEAD_DIM).transpose(1, 2).contiguous()
+    k = k_flat.view(B, S, NUM_KV_HEADS, HEAD_DIM).transpose(1, 2).contiguous()
+    v = v_flat.view(B, S, NUM_KV_HEADS, HEAD_DIM).transpose(1, 2).contiguous()
+
+    # --- Per-head RMSNorm on Q and K (NOT on V). ---
+    q = _rms_per_head(q, w_q_norm, eps)
+    k = _rms_per_head(k, w_k_norm, eps)
+
+    # --- RoPE tables and apply to Q and K. ---
+    cos, sin = _build_rope_tables(position_ids, inv_freq)
+    q = _apply_rope(q, cos, sin)
+    k = _apply_rope(k, cos, sin)
+
+    # --- GQA expansion: replicate KV heads to match Q head count. ---
+    # k, v are (B, 8, S, 128) -> expand to (B, 16, S, 128).
+    # The inductor `_where_3` does this with `x2 // 2` indexing, i.e.
+    # each KV head paired with `GQA_GROUP=2` consecutive Q heads.
+    k = k.repeat_interleave(GQA_GROUP, dim=1).contiguous()
+    v = v.repeat_interleave(GQA_GROUP, dim=1).contiguous()
+
+    # --- Causal + padding mask. ---
+    mask = _build_causal_mask(attention_mask, S)
+
+    return q, k, v, mask
+```
+
+## Candidate kernels
+
+### KERNEL_A
+
+```python
+"""Fused SDPA-prelude: Q/K/V projections + per-head RMSNorm + RoPE + GQA-expand + mask.
+
+Strategy:
+  1. Single cuBLAS GEMM for Q+K+V projections (weights stacked, output split).
+  2. Triton kernel fuses Q RMSNorm + RoPE directly on the GEMM output.
+  3. Triton kernel fuses K RMSNorm + RoPE + GQA-expand (8 -> 16).
+  4. Triton kernel fuses V GQA-expand (8 -> 16).
+  5. Triton kernel builds the causal + padding mask.
+"""
+from __future__ import annotations
+
+from typing import Tuple
+
+import torch
+import triton
+import triton.language as tl
+
+NUM_Q_HEADS = 16
+NUM_KV_HEADS = 8
+HEAD_DIM = 128
+
+
+@triton.jit
+def q_rmsnorm_rope_kernel(
+    q_in_ptr,
+    q_out_ptr,
+    w_q_norm_ptr,
+    cos_ptr,
+    sin_ptr,
+    B,
+    S,
+    NUM_Q_HEADS,
+    D,
+    q_in_stride_s,
+    q_in_stride_h,
+    q_out_stride_b,
+    q_out_stride_h,
+    q_out_stride_s,
+    cos_stride_s,
+    eps,
+    BLOCK_D: tl.constexpr,
+):
+    pid = tl.program_id(0)
+    num_blocks_per_batch = S * NUM_Q_HEADS
+    b = pid // num_blocks_per_batch
+    rem = pid % num_blocks_per_batch
+    s = rem // NUM_Q_HEADS
+    h = rem % NUM_Q_HEADS
+
+    idx1 = tl.arange(0, BLOCK_D // 2)
+    idx2 = tl.arange(BLOCK_D // 2, BLOCK_D)
+    in_offset = (b * S + s) * q_in_stride_s + h * q_in_stride_h
+
+    q1 = tl.load(q_in_ptr + in_offset + idx1).to(tl.float32)
+    q2 = tl.load(q_in_ptr + in_offset + idx2).to(tl.float32)
+
+    # RMSNorm in fp32
+    var = (tl.sum(q1 * q1, axis=0) + tl.sum(q2 * q2, axis=0)) / D
+    inv = tl.rsqrt(var + eps)
+    w1 = tl.load(w_q_norm_ptr + idx1).to(tl.float32)
+    w2 = tl.load(w_q_norm_ptr + idx2).to(tl.float32)
+    q1 = q1 * inv * w1
+    q2 = q2 * inv * w2
+
+    # RoPE
+    cos_offset = (b * S + s) * cos_stride_s
+    sin_offset = cos_offset
+    cos1 = tl.load(cos_ptr + cos_offset + idx1).to(tl.float32)
+    cos2 = tl.load(cos_ptr + cos_offset + idx2).to(tl.float32)
+    sin1 = tl.load(sin_ptr + sin_offset + idx1).to(tl.float32)
+    sin2 = tl.load(sin_ptr + sin_offset + idx2).to(tl.float32)
+
+    out1 = q1 * cos1 - q2 * sin1
+    out2 = q2 * cos2 + q1 * sin2
+
+    out_offset = b * q_out_stride_b + h * q_out_stride_h + s * q_out_stride_s
+    tl.store(q_out_ptr + out_offset + idx1, out1.to(tl.bfloat16))
+    tl.store(q_out_ptr + out_offset + idx2, out2.to(tl.bfloat16))
+
+
+@triton.jit
+def k_rmsnorm_rope_expand_kernel(
+    k_in_ptr,
+    k_out_ptr,
+    w_k_norm_ptr,
+    cos_ptr,
+    sin_ptr,
+    B,
+    S,
+    NUM_KV_HEADS,
+    NUM_Q_HEADS,
+    D,
+    k_in_stride_s,
+    k_in_stride_h,
+    k_out_stride_b,
+    k_out_stride_h,
+    k_out_stride_s,
+    cos_stride_s,
+    eps,
+    BLOCK_D: tl.constexpr,
+):
+    pid = tl.program_id(0)
+    num_blocks_per_batch = S * NUM_Q_HEADS
+    b = pid // num_blocks_per_batch
+    rem = pid % num_blocks_per_batch
+    s = rem // NUM_Q_HEADS
+    h_out = rem % NUM_Q_HEADS
+    h_in = h_out // 2
+
+    idx1 = tl.arange(0, BLOCK_D // 2)
+    idx2 = tl.arange(BLOCK_D // 2, BLOCK_D)
+    in_offset = (b * S + s) * k_in_stride_s + h_in * k_in_stride_h
+
+    k1 = tl.load(k_in_ptr + in_offset + idx1).to(tl.float32)
+    k2 = tl.load(k_in_ptr + in_offset + idx2).to(tl.float32)
+
+    # RMSNorm in fp32
+    var = (tl.sum(k1 * k1, axis=0) + tl.sum(k2 * k2, axis=0)) / D
+    inv = tl.rsqrt(var + eps)
+    w1 = tl.load(w_k_norm_ptr + idx1).to(tl.float32)
+    w2 = tl.load(w_k_norm_ptr + idx2).to(tl.float32)
+    k1 = k1 * inv * w1
+    k2 = k2 * inv * w2
+
+    # RoPE
+    cos_offset = (b * S + s) * cos_stride_s
+    sin_offset = cos_offset
+    cos1 = tl.load(cos_ptr + cos_offset + idx1).to(tl.float32)
+    cos2 = tl.load(cos_ptr + cos_offset + idx2).to(tl.float32)
+    sin1 = tl.load(sin_ptr + sin_offset + idx1).to(tl.float32)
+    sin2 = tl.load(sin_ptr + sin_offset + idx2).to(tl.float32)
+
+    out1 = k1 * cos1 - k2 * sin1
+    out2 = k2 * cos2 + k1 * sin2
+
+    out_offset = b * k_out_stride_b + h_out * k_out_stride_h + s * k_out_stride_s
+    tl.store(k_out_ptr + out_offset + idx1, out1.to(tl.bfloat16))
+    tl.store(k_out_ptr + out_offset + idx2, out2.to(tl.bfloat16))
+
+
+@triton.jit
+def v_expand_kernel(
+    v_in_ptr,
+    v_out_ptr,
+    B,
+    S,
+    NUM_KV_HEADS,
+    NUM_Q_HEADS,
+    D,
+    v_in_stride_s,
+    v_in_stride_h,
+    v_out_stride_b,
+    v_out_stride_h,
+    v_out_stride_s,
+    BLOCK_D: tl.constexpr,
+):
+    pid = tl.program_id(0)
+    num_blocks_per_batch = S * NUM_Q_HEADS
+    b = pid // num_blocks_per_batch
+    rem = pid % num_blocks_per_batch
+    s = rem // NUM_Q_HEADS
+    h_out = rem % NUM_Q_HEADS
+    h_in = h_out // 2
+
+    idx = tl.arange(0, BLOCK_D)
+    in_offset = (b * S + s) * v_in_stride_s + h_in * v_in_stride_h
+    v_vals = tl.load(v_in_ptr + in_offset + idx)
+
+    out_offset = b * v_out_stride_b + h_out * v_out_stride_h + s * v_out_stride_s
+    tl.store(v_out_ptr + out_offset + idx, v_vals)
+
+
+@triton.jit
+def causal_mask_kernel(
+    attention_mask_ptr,
+    mask_out_ptr,
+    B,
+    S,
+    mask_out_stride_b,
+    mask_out_stride_q,
+    mask_out_stride_k,
+    BLOCK_S: tl.constexpr,
+):
+    pid = tl.program_id(0)
+    b = pid // S
+    q = pid % S
+
+    idx = tl.arange(0, BLOCK_S)
+    am = tl.load(attention_mask_ptr + b * S + idx)
+
+    k_vals = idx
+    causal = k_vals <= q
+    keep = causal & (am != 0)
+
+    mask_vals = tl.where(
+        keep,
+        tl.full((BLOCK_S,), 0.0, tl.float32),
+        tl.full((BLOCK_S,), -float("inf"), tl.float32),
+    )
+
+    out_offset = b * mask_out_stride_b + q * mask_out_stride_q
+    tl.store(mask_out_ptr + out_offset + idx, mask_vals.to(tl.bfloat16))
+
+
+def run(
+    hidden_states: torch.Tensor,
+    w_q: torch.Tensor,
+    w_k: torch.Tensor,
+    w_v: torch.Tensor,
+    w_q_norm: torch.Tensor,
+    w_k_norm: torch.Tensor,
+    inv_freq: torch.Tensor,
+    position_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    eps: float = 1e-6,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    B, S, hidden = hidden_states.shape
+    device = hidden_states.device
+
+    # --- Single stacked QKV projection GEMM ---
+    hidden_flat = hidden_states.reshape(B * S, hidden)
+    w_qkv = torch.cat([w_q, w_k, w_v], dim=0)  # (4096, 2048)
+    w_qkv_T = torch.as_strided(w_qkv, (hidden, NUM_Q_HEADS * HEAD_DIM + 2 * NUM_KV_HEADS * HEAD_DIM), (1, hidden))
+    qkv_flat = torch.mm(hidden_flat, w_qkv_T)  # (B*S, 4096)
+
+    q_flat = qkv_flat[:, : NUM_Q_HEADS * HEAD_DIM]
+    k_flat = qkv_flat[:, NUM_Q_HEADS * HEAD_DIM : NUM_Q_HEADS * HEAD_DIM + NUM_KV_HEADS * HEAD_DIM]
+    v_flat = qkv_flat[:, NUM_Q_HEADS * HEAD_DIM + NUM_KV_HEADS * HEAD_DIM :]
+
+    # --- RoPE tables (B, S, D) -> flattened (B*S, D) ---
+    freqs = position_ids.to(torch.float32).unsqueeze(-1) * inv_freq.unsqueeze(0)
+    emb = torch.cat([freqs, freqs], dim=-1)
+    cos_flat = emb.cos().reshape(B * S, HEAD_DIM)
+    sin_flat = emb.sin().reshape(B * S, HEAD_DIM)
+
+    # --- Allocate outputs ---
+    q = torch.empty((B, NUM_Q_HEADS, S, HEAD_DIM), dtype=torch.bfloat16, device=device)
+    k = torch.empty((B, NUM_Q_HEADS, S, HEAD_DIM), dtype=torch.bfloat16, device=device)
+    v = torch.empty((B, NUM_Q_HEADS, S, HEAD_DIM), dtype=torch.bfloat16, device=device)
+    mask = torch.empty((B, 1, S, S), dtype=torch.bfloat16, device=device)
+
+    # --- Launch fused Triton kernels ---
+    grid_q = B * S * NUM_Q_HEADS
+    grid_k = B * S * NUM_Q_HEADS
+    grid_v = B * S * NUM_Q_HEADS
+    grid_mask = B * S
+
+    q_rmsnorm_rope_kernel[(grid_q,)](
+        q_flat,
+        q,
+        w_q_norm,
+        cos_flat,
+        sin_flat,
+        B,
+        S,
+        NUM_Q_HEADS,
+        HEAD_DIM,
+        q_flat.stride(0),
+        HEAD_DIM,
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        cos_flat.stride(0),
+        eps,
+        BLOCK_D=HEAD_DIM,
+    )
+
+    k_rmsnorm_rope_expand_kernel[(grid_k,)](
+        k_flat,
+        k,
+        w_k_norm,
+        cos_flat,
+        sin_flat,
+        B,
+        S,
+        NUM_KV_HEADS,
+        NUM_Q_HEADS,
+        HEAD_DIM,
+        k_flat.stride(0),
+        HEAD_DIM,
+        k.stride(0),
+        k.stride(1),
+        k.stride(2),
+        cos_flat.stride(0),
+        eps,
+        BLOCK_D=HEAD_DIM,
+    )
+
+    v_expand_kernel[(grid_v,)](
+        v_flat,
+        v,
+        B,
+        S,
+        NUM_KV_HEADS,
+        NUM_Q_HEADS,
+        HEAD_DIM,
+        v_flat.stride(0),
+        HEAD_DIM,
+        v.stride(0),
+        v.stride(1),
+        v.stride(2),
+        BLOCK_D=HEAD_DIM,
+    )
+
+    causal_mask_kernel[(grid_mask,)](
+        attention_mask,
+        mask,
+        B,
+        S,
+        mask.stride(0),
+        mask.stride(2),
+        mask.stride(3),
+        BLOCK_S=S,
+    )
+
+    return q, k, v, mask
+```
+
+### KERNEL_B
+
+```python
+"""Fused SDPA prelude: Q/K/V projections + RMSNorm + RoPE + GQA expand + mask.
+
+Approach:
+  * QKV projections stay as cuBLAS mm (with the as_strided trick).
+  * One Triton kernel for Q (RMSNorm + RoPE, layout SHD -> HSD).
+  * One Triton kernel for K (RMSNorm + RoPE + GQA expand 8->16, layout SHD -> HSD).
+  * One Triton kernel for V (GQA expand 8->16, layout SHD -> HSD).
+  * One Triton kernel for the (S, S) causal/padding mask.
+
+cos/sin tables for RoPE are computed inline inside the Q/K kernels from
+position_ids + inv_freq, so we never materialise them.
+"""
+from __future__ import annotations
+
+from typing import Tuple
+
+import torch
+import triton
+import triton.language as tl
+
+NUM_Q_HEADS = 16
+NUM_KV_HEADS = 8
+HEAD_DIM = 128
+HALF = HEAD_DIM // 2  # 64
+GQA = NUM_Q_HEADS // NUM_KV_HEADS  # 2
+
+
+@triton.jit
+def _rmsnorm_rope_q_kernel(
+    in_ptr, out_ptr, w_norm_ptr, position_ids_ptr, inv_freq_ptr,
+    eps,
+    S: tl.constexpr, H: tl.constexpr, D: tl.constexpr,
+    HALF_C: tl.constexpr, BLOCK_S: tl.constexpr,
+):
+    # in_ptr layout: (B, S, H, D)  -- flattened cuBLAS output reshaped.
+    # out_ptr layout: (B, H, S, D)
+    # Each program: one batch element b, one head h, BLOCK_S rows of S.
+    pid_bh = tl.program_id(0)
+    pid_s = tl.program_id(1)
+    h = pid_bh % H
+    b = pid_bh // H
+
+    s_off = pid_s * BLOCK_S + tl.arange(0, BLOCK_S)
+    s_mask = s_off < S
+    half_off = tl.arange(0, HALF_C)
+
+    in_base = b * S * H * D + s_off[:, None] * (H * D) + h * D
+    x_lo = tl.load(in_ptr + in_base + half_off[None, :],
+                   mask=s_mask[:, None], other=0.0).to(tl.float32)
+    x_hi = tl.load(in_ptr + in_base + half_off[None, :] + HALF_C,
+                   mask=s_mask[:, None], other=0.0).to(tl.float32)
+
+    # RMSNorm over D (=128). All math fp32.
+    sum_sq = tl.sum(x_lo * x_lo, axis=1) + tl.sum(x_hi * x_hi, axis=1)
+    inv = tl.rsqrt(sum_sq / D + eps)  # (BLOCK_S,)
+
+    w_lo = tl.load(w_norm_ptr + half_off).to(tl.float32)
+    w_hi = tl.load(w_norm_ptr + half_off + HALF_C).to(tl.float32)
+    n_lo = x_lo * inv[:, None] * w_lo[None, :]
+    n_hi = x_hi * inv[:, None] * w_hi[None, :]
+
+    # RoPE: build cos/sin from position_ids + inv_freq.
+    pos = tl.load(position_ids_ptr + b * S + s_off,
+                  mask=s_mask, other=0).to(tl.float32)
+    inv_f = tl.load(inv_freq_ptr + half_off)  # fp32
+    angle = pos[:, None] * inv_f[None, :]
+    cos = tl.cos(angle)
+    sin = tl.sin(angle)
+
+    # x * cos + rotate_half(x) * sin, where rotate_half([lo,hi]) = [-hi, lo].
+    out_lo = n_lo * cos - n_hi * sin
+    out_hi = n_hi * cos + n_lo * sin
+
+    out_base = b * H * S * D + h * (S * D) + s_off[:, None] * D
+    tl.store(out_ptr + out_base + half_off[None, :],
+             out_lo.to(tl.bfloat16), mask=s_mask[:, None])
+    tl.store(out_ptr + out_base + half_off[None, :] + HALF_C,
+             out_hi.to(tl.bfloat16), mask=s_mask[:, None])
+
+
+@triton.jit
+def _rmsnorm_rope_k_expand_kernel(
+    in_ptr, out_ptr, w_norm_ptr, position_ids_ptr, inv_freq_ptr,
+    eps,
+    S: tl.constexpr, QH: tl.constexpr, KH: tl.constexpr, D: tl.constexpr,
+    HALF_C: tl.constexpr, BLOCK_S: tl.constexpr, GQA_C: tl.constexpr,
+):
+    # in_ptr layout: (B, S, KH, D)
+    # out_ptr layout: (B, QH, S, D) where qh -> kh = qh // GQA
+    pid_bkh = tl.program_id(0)
+    pid_s = tl.program_id(1)
+    kh = pid_bkh % KH
+    b = pid_bkh // KH
+
+    s_off = pid_s * BLOCK_S + tl.arange(0, BLOCK_S)
+    s_mask = s_off < S
+    half_off = tl.arange(0, HALF_C)
+
+    in_base = b * S * KH * D + s_off[:, None] * (KH * D) + kh * D
+    x_lo = tl.load(in_ptr + in_base + half_off[None, :],
+                   mask=s_mask[:, None], other=0.0).to(tl.float32)
+    x_hi = tl.load(in_ptr + in_base + half_off[None, :] + HALF_C,
+                   mask=s_mask[:, None], other=0.0).to(tl.float32)
+
+    sum_sq = tl.sum(x_lo * x_lo, axis=1) + tl.sum(x_hi * x_hi, axis=1)
+    inv = tl.rsqrt(sum_sq / D + eps)
+
+    w_lo = tl.load(w_norm_ptr + half_off).to(tl.float32)
+    w_hi = tl.load(w_norm_ptr + half_off + HALF_C).to(tl.float32)
+    n_lo = x_lo * inv[:, None] * w_lo[None, :]
+    n_hi = x_hi * inv[:, None] * w_hi[None, :]
+
+    pos = tl.load(position_ids_ptr + b * S + s_off,
+                  mask=s_mask, other=0).to(tl.float32)
+    inv_f = tl.load(inv_freq_ptr + half_off)
+    angle = pos[:, None] * inv_f[None, :]
+    cos = tl.cos(angle)
+    sin = tl.sin(angle)
+
+    out_lo = (n_lo * cos - n_hi * sin).to(tl.bfloat16)
+    out_hi = (n_hi * cos + n_lo * sin).to(tl.bfloat16)
+
+    # Write to GQA_C consecutive q-head positions: qh = kh*GQA + i for i in [0, GQA).
+    for i in tl.static_range(GQA_C):
+        qh = kh * GQA_C + i
+        out_base = b * QH * S * D + qh * (S * D) + s_off[:, None] * D
+        tl.store(out_ptr + out_base + half_off[None, :],
+                 out_lo, mask=s_mask[:, None])
+        tl.store(out_ptr + out_base + half_off[None, :] + HALF_C,
+                 out_hi, mask=s_mask[:, None])
+
+
+@triton.jit
+def _v_expand_kernel(
+    in_ptr, out_ptr,
+    S: tl.constexpr, QH: tl.constexpr, KH: tl.constexpr, D: tl.constexpr,
+    BLOCK_S: tl.constexpr, GQA_C: tl.constexpr,
+):
+    # in_ptr layout: (B, S, KH, D).  out: (B, QH, S, D), GQA-expanded.
+    pid_bkh = tl.program_id(0)
+    pid_s = tl.program_id(1)
+    kh = pid_bkh % KH
+    b = pid_bkh // KH
+
+    s_off = pid_s * BLOCK_S + tl.arange(0, BLOCK_S)
+    s_mask = s_off < S
+    d_off = tl.arange(0, D)
+
+    in_base = b * S * KH * D + s_off[:, None] * (KH * D) + kh * D
+    x = tl.load(in_ptr + in_base + d_off[None, :],
+                mask=s_mask[:, None], other=0)
+
+    for i in tl.static_range(GQA_C):
+        qh = kh * GQA_C + i
+        out_base = b * QH * S * D + qh * (S * D) + s_off[:, None] * D
+        tl.store(out_ptr + out_base + d_off[None, :], x, mask=s_mask[:, None])
+
+
+@triton.jit
+def _causal_mask_kernel(
+    attn_mask_ptr, out_ptr,
+    S: tl.constexpr, BLOCK: tl.constexpr,
+):
+    # out shape (B, 1, S, S) bf16. attn_mask shape (B, S) int64.
+    pid = tl.program_id(0)
+    q = pid % S
+    b = pid // S
+
+    k_off = tl.arange(0, BLOCK)
+    k_mask = k_off < S
+
+    causal = k_off <= q
+    am = tl.load(attn_mask_ptr + b * S + k_off, mask=k_mask, other=0)
+    keep = (am != 0) & causal & k_mask
+
+    NEG_INF: tl.constexpr = float("-inf")
+    val = tl.where(keep, 0.0, NEG_INF)
+
+    base = b * S * S + q * S
+    tl.store(out_ptr + base + k_off, val.to(tl.bfloat16), mask=k_mask)
+
+
+def run(
+    hidden_states: torch.Tensor,
+    w_q: torch.Tensor,
+    w_k: torch.Tensor,
+    w_v: torch.Tensor,
+    w_q_norm: torch.Tensor,
+    w_k_norm: torch.Tensor,
+    inv_freq: torch.Tensor,
+    position_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    eps: float = 1e-6,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    B, S, H = hidden_states.shape
+    QH = NUM_Q_HEADS
+    KH = NUM_KV_HEADS
+    D = HEAD_DIM
+    device = hidden_states.device
+    dtype = torch.bfloat16
+
+    # --- Q/K/V projections (cuBLAS, with as_strided fast-path trick). ---
+    hidden_flat = hidden_states.reshape(B * S, H)
+    w_q_T = torch.as_strided(w_q, (H, QH * D), (1, H))
+    w_k_T = torch.as_strided(w_k, (H, KH * D), (1, H))
+    w_v_T = torch.as_strided(w_v, (H, KH * D), (1, H))
+    q_flat = torch.mm(hidden_flat, w_q_T)  # (B*S, QH*D)
+    k_flat = torch.mm(hidden_flat, w_k_T)  # (B*S, KH*D)
+    v_flat = torch.mm(hidden_flat, w_v_T)  # (B*S, KH*D)
+
+    # --- Allocate outputs. ---
+    q_out = torch.empty((B, QH, S, D), dtype=dtype, device=device)
+    k_out = torch.empty((B, QH, S, D), dtype=dtype, device=device)
+    v_out = torch.empty((B, QH, S, D), dtype=dtype, device=device)
+    mask_out = torch.empty((B, 1, S, S), dtype=dtype, device=device)
+
+    BLOCK_S = 16  # rows per program
+    grid_q = (B * QH, triton.cdiv(S, BLOCK_S))
+    grid_k = (B * KH, triton.cdiv(S, BLOCK_S))
+    grid_v = (B * KH, triton.cdiv(S, BLOCK_S))
+
+    _rmsnorm_rope_q_kernel[grid_q](
+        q_flat, q_out, w_q_norm, position_ids, inv_freq,
+        eps,
+        S, QH, D, HALF, BLOCK_S,
+        num_warps=4,
+    )
+    _rmsnorm_rope_k_expand_kernel[grid_k](
+        k_flat, k_out, w_k_norm, position_ids, inv_freq,
+        eps,
+        S, QH, KH, D, HALF, BLOCK_S, GQA,
+        num_warps=4,
+    )
+    _v_expand_kernel[grid_v](
+        v_flat, v_out,
+        S, QH, KH, D, BLOCK_S, GQA,
+        num_warps=4,
+    )
+
+    # Mask
+    MASK_BLOCK = triton.next_power_of_2(S)  # 512
+    _causal_mask_kernel[(B * S,)](
+        attention_mask, mask_out,
+        S, MASK_BLOCK,
+        num_warps=4,
+    )
+
+    return q_out, k_out, v_out, mask_out
+```
+
+### KERNEL_C
+
+```python
+from __future__ import annotations
+
+from typing import Tuple
+
+import torch
+import triton
+import triton.language as tl
+
+
+SEQ = 512
+HIDDEN = 2048
+NUM_Q_HEADS = 16
+NUM_KV_HEADS = 8
+HEAD_DIM = 128
+GQA_GROUP = 2
+
+
+@triton.jit
+def _q_norm_rope_inplace(
+    q_flat,
+    w_norm,
+    inv_freq,
+    position_ids,
+    eps: tl.constexpr,
+    BLOCK: tl.constexpr,
+):
+    pid = tl.program_id(0)  # pid = s * 16 + q_head
+    offs = tl.arange(0, BLOCK)
+    base = pid * BLOCK
+
+    x = tl.load(q_flat + base + offs).to(tl.float32)
+    ss = tl.sum(x * x, axis=0)
+    inv_rms = tl.rsqrt(ss * 0.0078125 + eps)
+
+    other = tl.where(offs < 64, offs + 64, offs - 64)
+    other_x = tl.load(q_flat + base + other).to(tl.float32)
+
+    w = tl.load(w_norm + offs).to(tl.float32)
+    other_w = tl.load(w_norm + other).to(tl.float32)
+    x_norm = x * inv_rms * w
+    rot_norm = other_x * inv_rms * other_w
+    rot_norm = tl.where(offs < 64, -rot_norm, rot_norm)
+
+    seq = pid // 16
+    pos = tl.load(position_ids + seq).to(tl.float32)
+    angle = pos * tl.load(inv_freq + (offs & 63)).to(tl.float32)
+    out = x_norm * tl.cos(angle) + rot_norm * tl.sin(angle)
+    tl.store(q_flat + base + offs, out)
+
+
+@triton.jit
+def _kv_norm_rope_expand(
+    k_flat,
+    v_flat,
+    k_out,
+    v_out,
+    w_norm,
+    inv_freq,
+    position_ids,
+    eps: tl.constexpr,
+    BLOCK: tl.constexpr,
+):
+    pid = tl.program_id(0)  # pid = s * 8 + kv_head
+    offs = tl.arange(0, BLOCK)
+    src_base = pid * BLOCK
+
+    x = tl.load(k_flat + src_base + offs).to(tl.float32)
+    ss = tl.sum(x * x, axis=0)
+    inv_rms = tl.rsqrt(ss * 0.0078125 + eps)
+
+    other = tl.where(offs < 64, offs + 64, offs - 64)
+    other_x = tl.load(k_flat + src_base + other).to(tl.float32)
+
+    w = tl.load(w_norm + offs).to(tl.float32)
+    other_w = tl.load(w_norm + other).to(tl.float32)
+    x_norm = x * inv_rms * w
+    rot_norm = other_x * inv_rms * other_w
+    rot_norm = tl.where(offs < 64, -rot_norm, rot_norm)
+
+    seq = pid // 8
+    kv_head = pid - seq * 8
+    pos = tl.load(position_ids + seq).to(tl.float32)
+    angle = pos * tl.load(inv_freq + (offs & 63)).to(tl.float32)
+    k_val = x_norm * tl.cos(angle) + rot_norm * tl.sin(angle)
+
+    q_head0 = kv_head * 2
+    dst0 = (q_head0 * 512 + seq) * 128 + offs
+    dst1 = dst0 + 512 * 128
+    tl.store(k_out + dst0, k_val)
+    tl.store(k_out + dst1, k_val)
+
+    v_val = tl.load(v_flat + src_base + offs)
+    tl.store(v_out + dst0, v_val)
+    tl.store(v_out + dst1, v_val)
+
+
+@triton.jit
+def _mask_kernel(attention_mask, out, BLOCK: tl.constexpr):
+    q = tl.program_id(0)
+    k = tl.arange(0, BLOCK)
+    keep = (k <= q) & (tl.load(attention_mask + k) != 0)
+    val = tl.where(keep, 0.0, -float("inf"))
+    tl.store(out + q * 512 + k, val)
+
+
+def run(
+    hidden_states: torch.Tensor,
+    w_q: torch.Tensor,
+    w_k: torch.Tensor,
+    w_v: torch.Tensor,
+    w_q_norm: torch.Tensor,
+    w_k_norm: torch.Tensor,
+    inv_freq: torch.Tensor,
+    position_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    eps: float = 1e-6,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    hidden_flat = hidden_states.reshape(SEQ, HIDDEN)
+
+    w_q_t = torch.as_strided(w_q, (HIDDEN, HIDDEN), (1, HIDDEN))
+    w_k_t = torch.as_strided(w_k, (HIDDEN, NUM_KV_HEADS * HEAD_DIM), (1, HIDDEN))
+    w_v_t = torch.as_strided(w_v, (HIDDEN, NUM_KV_HEADS * HEAD_DIM), (1, HIDDEN))
+
+    q_flat = torch.empty((SEQ, HIDDEN), device=hidden_states.device, dtype=torch.bfloat16)
+    k_flat = torch.empty((SEQ, NUM_KV_HEADS * HEAD_DIM), device=hidden_states.device, dtype=torch.bfloat16)
+    v_flat = torch.empty((SEQ, NUM_KV_HEADS * HEAD_DIM), device=hidden_states.device, dtype=torch.bfloat16)
+
+    torch.mm(hidden_flat, w_q_t, out=q_flat)
+    torch.mm(hidden_flat, w_k_t, out=k_flat)
+    torch.mm(hidden_flat, w_v_t, out=v_flat)
+
+    k = torch.empty((1, NUM_Q_HEADS, SEQ, HEAD_DIM), device=hidden_states.device, dtype=torch.bfloat16)
+    v = torch.empty((1, NUM_Q_HEADS, SEQ, HEAD_DIM), device=hidden_states.device, dtype=torch.bfloat16)
+    mask = torch.empty((1, 1, SEQ, SEQ), device=hidden_states.device, dtype=torch.bfloat16)
+
+    _q_norm_rope_inplace[(SEQ * NUM_Q_HEADS,)](
+        q_flat, w_q_norm, inv_freq, position_ids, eps, BLOCK=HEAD_DIM, num_warps=4
+    )
+    _kv_norm_rope_expand[(SEQ * NUM_KV_HEADS,)](
+        k_flat, v_flat, k, v, w_k_norm, inv_freq, position_ids, eps, BLOCK=HEAD_DIM, num_warps=4
+    )
+    _mask_kernel[(SEQ,)](attention_mask, mask, BLOCK=SEQ, num_warps=8)
+
+    q = q_flat.view(1, SEQ, NUM_Q_HEADS, HEAD_DIM).transpose(1, 2)
+    return q, k, v, mask
+```
+
+### KERNEL_D
+
+```python
+
+import triton
+import triton.language as tl
+
+from torch._inductor.runtime import triton_helpers, triton_heuristics
+from torch._inductor.runtime.triton_helpers import libdevice, math as tl_math
+from torch._inductor.runtime.hints import AutotuneHint, ReductionHint, TileHint, DeviceProperties
+triton_helpers.set_driver_to_gpu()
+
+@triton_heuristics.pointwise(
+    size_hints={'x': 33554432}, 
+    filename=__file__,
+    triton_meta={'signature': {'in_ptr0': '*bf16', 'out_ptr0': '*bf16', 'xnumel': 'i32', 'XBLOCK': 'constexpr'}, 'device': DeviceProperties(type='cuda', index=0, multi_processor_count=48, cc=121, major=12, regs_per_multiprocessor=65536, max_threads_per_multi_processor=1536, max_threads_per_block=1024, warp_size=32), 'constants': {}, 'native_matmul': False, 'enable_fp_fusion': True, 'launch_pdl': False, 'disable_ftz': False, 'configs': [{(0,): [['tt.divisibility', 16]], (1,): [['tt.divisibility', 16]], (2,): [['tt.divisibility', 16]]}]},
+    inductor_meta={'grid_type': 'Grid1D', 'autotune_hints': set(), 'kernel_name': 'triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3', 'mutated_arg_names': [], 'optimize_mem': True, 'no_x_dim': False, 'atomic_add_found': False, 'num_load': 1, 'num_store': 1, 'num_reduction': 0, 'backend_hash': 'F26D6A7434BEBEE3558734F2AEA99A4FDF9682E2121B0D40DD978F26BD1DF547', 'assert_indirect_indexing': True, 'autotune_local_cache': True, 'autotune_pointwise': True, 'autotune_remote_cache': None, 'force_disable_caches': False, 'dynamic_scale_rblock': True, 'max_autotune': False, 'max_autotune_pointwise': False, 'min_split_scan_rblock': 256, 'spill_threshold': 16, 'store_cubin': False, 'deterministic': False, 'force_filter_reduction_configs': False, 'mix_order_reduction_allow_multi_stages': False, 'are_deterministic_algorithms_enabled': False, 'tiling_scores': {'x': 167772160}},
+    min_elem_per_thread=0
+)
+@triton.jit
+def triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3(in_ptr0, out_ptr0, xnumel, XBLOCK : tl.constexpr):
+    xnumel = 33554432
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)[:]
+    xmask = tl.full([XBLOCK], True, tl.int1)[:]
+    x0 = (xindex % 128)
+    x1 = ((xindex // 128) % 2048)
+    x2 = ((xindex // 262144) % 16)
+    x3 = xindex // 4194304
+    x4 = xindex
+    tmp0 = tl.load(in_ptr0 + (x0 + 128*(x2 // 2) + 1024*x1 + 2097152*x3), None).to(tl.float32)
+    tl.store(out_ptr0 + (x4), tmp0, None)
+```
+
+## Your task
+
+**Rubric (1-5 scale, where 1=poor, 5=excellent):**
+1. **Correctness reasoning** -- does the code make it easy to convince yourself the math is right? Are there obvious tolerance hazards (e.g. bf16 intermediate where fp32 is needed, missing fp32 promotion of accumulators)?
+2. **Performance reasoning** -- block sizing, load coalescing, register pressure, choice of fusion boundaries. Can you predict if it's fast just from reading?
+3. **Readability** -- variable naming, structure, comments where they earn their keep.
+4. **Code length** -- right-sized for the job, or under/over-engineered?
+5. **Risk** -- would you ship this to production? What's the failure mode you'd worry about?
+
+For each of KERNEL_A, KERNEL_B, KERNEL_C, KERNEL_D, give a score on each of the 5 rubric dimensions plus a 2-4 sentence rationale.
+
+Then answer one **forced-rank** question:
+> If you had to ship exactly ONE of A/B/C/D to production, which would it be, and why? Limit yourself to ~4 sentences.
+
+Format your response as markdown with sections `## KERNEL_A`, `## KERNEL_B`, `## KERNEL_C`, `## KERNEL_D`, then `## Forced rank: ship one`.
+Under each kernel, present the 5 rubric scores as a small markdown table (dimension | score | one-line note).

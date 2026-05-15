@@ -1,0 +1,9 @@
+{
+  "task": "swiglu",
+  "label_to_author": {
+    "A": "inductor",
+    "B": "kimi",
+    "C": "claude",
+    "D": "codex"
+  }
+}

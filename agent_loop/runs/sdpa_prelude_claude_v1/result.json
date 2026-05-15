@@ -1,0 +1,111 @@
+{
+  "cli": "claude",
+  "task": "sdpa_prelude",
+  "run_id": "sdpa_prelude_claude_v1",
+  "wall_clock_s": 302.6040301602334,
+  "mean_gpu_util_pct": 0.18027210884353742,
+  "gpu_util_n_samples": 294,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "per_output": {
+        "q": {
+          "pass": true,
+          "cos_sim": 0.9999959114690239,
+          "l1_rel": 0.0015266150003299117,
+          "rmse": 0.0028890392277389765,
+          "reasons": []
+        },
+        "k": {
+          "pass": true,
+          "cos_sim": 0.9999959301192664,
+          "l1_rel": 0.0015191936399787664,
+          "rmse": 0.002882092259824276,
+          "reasons": []
+        },
+        "v": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        },
+        "mask": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        }
+      },
+      "reasons": []
+    },
+    "correctness_strict": {
+      "pass": true,
+      "per_output": {
+        "q": {
+          "pass": true,
+          "cos_sim": 0.9999959114690239,
+          "l1_rel": 0.0015266150003299117,
+          "rmse": 0.0028890392277389765,
+          "reasons": []
+        },
+        "k": {
+          "pass": true,
+          "cos_sim": 0.9999959301192664,
+          "l1_rel": 0.0015191936399787664,
+          "rmse": 0.002882092259824276,
+          "reasons": []
+        },
+        "v": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        },
+        "mask": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        }
+      },
+      "reasons": []
+    },
+    "mutations": {
+      "hidden_states": false,
+      "w_q": false,
+      "w_k": false,
+      "w_v": false,
+      "w_q_norm": false,
+      "w_k_norm": false,
+      "inv_freq": false,
+      "position_ids": false,
+      "attention_mask": false
+    },
+    "deterministic": true,
+    "determinism_rmse": {
+      "q": 0.0,
+      "k": 0.0,
+      "v": 0.0,
+      "mask": 0.0
+    },
+    "candidate_us": 1513.4719610214233,
+    "reference_us": 1996.7679977416992,
+    "inductor_baseline_us": 4045.7282066345215,
+    "speedup_vs_inductor": 2.6731438115999917,
+    "verdict": "PASS_STRICT"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/sdpa_prelude_claude_v1/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/sdpa_prelude_claude_v1",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/sdpa_prelude_claude_v1",
+  "started_at": "2026-05-15T03:44:13.971156+00:00",
+  "ended_at": "2026-05-15T03:49:16.575192+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

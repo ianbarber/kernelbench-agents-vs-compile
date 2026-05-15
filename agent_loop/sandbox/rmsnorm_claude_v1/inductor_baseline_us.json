@@ -1,0 +1,14 @@
+{
+  "kernel": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+  "median_us": 35.840000957250595,
+  "note": "Standalone microbench median (do_bench, return_mode='median') on GB10 sm_121, bf16, residual-fused RMSNorm. x shape (1,512,2048), residual (512,2048), weight (2048,). This is the codegen-vs-codegen baseline the harness uses for speedup_vs_inductor. The profiler-aggregate value (258.8 us) covers many call sites and is NOT directly comparable. Source: extract/microbench_inductor.json (key 'rmsnorm_us').",
+  "profiler_aggregate_us": 258.82638461538454,
+  "shape": [1, 512, 2048],
+  "dtype": "bf16",
+  "launch_config": {
+    "XBLOCK": 2,
+    "R0_BLOCK": 1024,
+    "num_warps": 8,
+    "num_stages": 1
+  }
+}

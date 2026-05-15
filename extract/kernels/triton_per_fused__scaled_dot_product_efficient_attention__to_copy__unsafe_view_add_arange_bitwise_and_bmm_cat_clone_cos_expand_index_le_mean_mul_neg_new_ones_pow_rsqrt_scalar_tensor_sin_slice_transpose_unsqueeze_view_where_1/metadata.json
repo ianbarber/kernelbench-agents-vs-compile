@@ -1,0 +1,76 @@
+{
+  "name": "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+  "found_in": [
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "kind": "triton",
+      "total_us": 20785.033,
+      "pct_total": 1.164395627848527,
+      "invocations": 280,
+      "mean_us": 74.23226071428572,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            16,
+            512,
+            128
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            128
+          ],
+          [
+            64
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            1048576,
+            128,
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "float",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/dd/cddtiewwghuvtacanfhc2kkubfeg33qt4shqyw5lmhkcqft6swet.py",
+        "kernel_hash": "cddtiewwghuvtacanfhc2kkubfeg33qt4shqyw5lmhkcqft6swet",
+        "num_warps": 2,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=1"
+      }
+    }
+  }
+}

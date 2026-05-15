@@ -1,0 +1,25 @@
+{
+  "correctness": {
+    "pass": true,
+    "cos_sim": 0.9999958666720676,
+    "l1_rel": 0.0014892624458298087,
+    "rmse": 0.0017213962273672223,
+    "reasons": []
+  },
+  "correctness_strict": {
+    "pass": true,
+    "cos_sim": 0.9999958666720676,
+    "l1_rel": 0.0014892624458298087,
+    "rmse": 0.0017213962273672223,
+    "reasons": []
+  },
+  "mutates_x": false,
+  "mutates_y": false,
+  "deterministic": true,
+  "determinism_rmse": 0.0,
+  "candidate_us": 121.79200351238251,
+  "reference_us": 142.33599603176117,
+  "inductor_baseline_us": 361.3154750000003,
+  "speedup_vs_inductor": 2.9666600809573316,
+  "verdict": "PASS_STRICT"
+}

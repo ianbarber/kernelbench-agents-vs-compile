@@ -1,0 +1,92 @@
+{
+  "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+  "found_in": [
+    "decode_ctx2048_b1::model__1_inference_1.1",
+    "decode_ctx2048_b8::model__3_inference_3.3",
+    "decode_ctx512_b1::model__5_inference_5.5",
+    "decode_ctx512_b8::model__7_inference_7.7"
+  ],
+  "stats": {
+    "decode_ctx512_b1": {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+      "kind": "triton",
+      "total_us": 64.27300000000001,
+      "pct_total": 0.03414540748970879,
+      "invocations": 10,
+      "mean_us": 6.427300000000001,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            1
+          ],
+          [
+            151936,
+            2048
+          ],
+          [
+            1,
+            2048
+          ],
+          [
+            1,
+            2048
+          ],
+          [
+            2048
+          ],
+          [
+            1,
+            1,
+            2048
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            1,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            2048,
+            2048,
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "long int",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/zd/czdclx5gyj5cvyzatu4g6erc5vjxdjc6tp2rehxyxhhpi3mk7tl7.py",
+        "kernel_hash": "czdclx5gyj5cvyzatu4g6erc5vjxdjc6tp2rehxyxhhpi3mk7tl7",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=1,R0_BLOCK=1024"
+      }
+    }
+  }
+}

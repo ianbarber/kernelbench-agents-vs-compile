@@ -1,0 +1,37 @@
+# Heavy artifacts — regenerable from code
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Reference papers (copyright)
+*.pdf
+
+# Large per-run artifacts
+baselines/results/reference_outputs/
+baselines/results/candidate_outputs/
+baselines/results/traces/
+baselines/results/logs/
+extract/inductor_debug/
+extract/_stripped/
+
+# Raw CLI transcripts (preserve result.json + summary markdowns only)
+agent_loop/runs/*/cli.log
+agent_loop/runs/*/prompt.txt
+agent_loop/runs/*/harness_stdout.txt
+agent_loop/runs/*/harness_stderr.txt
+agent_loop/runs/*/popen_stdout.txt
+agent_loop/runs/*/popen_stderr.txt
+
+# Editor / OS noise
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# E2E run logs (verbose)
+e2e/run.log
+e2e/run_3090.log
+
+# Misc
+*.log

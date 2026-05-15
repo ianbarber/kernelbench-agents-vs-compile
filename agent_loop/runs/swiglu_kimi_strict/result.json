@@ -1,0 +1,43 @@
+{
+  "cli": "kimi",
+  "task": "swiglu",
+  "run_id": "swiglu_kimi_strict",
+  "wall_clock_s": 1200.0827681375667,
+  "mean_gpu_util_pct": 2.323580034423408,
+  "gpu_util_n_samples": 1162,
+  "cli_exit_code": -1,
+  "cli_timed_out": true,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999958666720676,
+      "l1_rel": 0.0014892624458298087,
+      "rmse": 0.0017213962273672223,
+      "reasons": []
+    },
+    "correctness_strict": {
+      "pass": true,
+      "cos_sim": 0.9999958666720676,
+      "l1_rel": 0.0014892624458298087,
+      "rmse": 0.0017213962273672223,
+      "reasons": []
+    },
+    "mutates_x": false,
+    "mutates_y": false,
+    "deterministic": true,
+    "determinism_rmse": 0.0,
+    "candidate_us": 103.42399775981903,
+    "reference_us": 140.28799533843994,
+    "inductor_baseline_us": 109.6000000834465,
+    "speedup_vs_inductor": 1.0597153702951028,
+    "verdict": "PASS_STRICT"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/swiglu_kimi_strict/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_kimi_strict",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/swiglu_kimi_strict",
+  "started_at": "2026-05-15T01:54:28.582671+00:00",
+  "ended_at": "2026-05-15T02:14:28.665445+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

@@ -1,0 +1,575 @@
+# Code review: rmsnorm Triton kernels
+
+You are reviewing four candidate Triton kernel implementations of the same task. Three were written by AI coding agents; one was emitted by torch.inductor. **You do not know which is which.** Review them all on their merits.
+
+Inductor context: single emitted Triton kernel for residual-add + RMSNorm
+
+## Task description
+
+# Task: Beat inductor's residual-fused RMSNorm kernel
+
+## What
+
+Write a fast GPU kernel that computes **residual-add + RMSNorm** on bf16
+tensors, matching the canonical Qwen3-1.7B attention/MLP-block prelude:
+
+```
+s    = x + residual
+var  = mean(s^2, axis=-1, keepdim=True)
+inv  = rsqrt(var + eps)
+out  = s * inv * weight
+```
+
+All math is done in fp32 internally (loads promote bf16 -> fp32, the
+single store demotes fp32 -> bf16). Inductor does exactly this. The
+post-add residual `s` lives in registers — it is **not** written back to
+memory.
+
+The canonical shapes (from the inductor sample at the
+prefill_512_b1 call site) are:
+
+```
+x        : (1, 512, 2048)  bf16
+residual : (512, 2048)     bf16   (broadcast over the leading singleton)
+weight   : (2048,)         bf16
+eps      : float scalar, 1e-6
+out      : (1, 512, 2048)  bf16
+```
+
+Total memory: 4 MiB read + 2 MiB write per call. This op is
+**memory-bandwidth-bound**, but unlike SwiGLU it also needs a per-row
+reduction over 2048 elements, so it is *less* bandwidth-bound than a pure
+pointwise op (the reduction adds compute + cross-lane work).
+
+The eager PyTorch reference is in `reference.py`:
+
+```python
+def run(x, residual, weight, eps=1e-6):
+    s = x.to(torch.float32) + residual.to(torch.float32)
+    var = s.pow(2).mean(dim=-1, keepdim=True)
+    inv = torch.rsqrt(var + eps)
+    return (s * inv * weight.to(torch.float32)).to(x.dtype)
+```
+
+## Where to put your code
+
+You must produce a Python module at `candidate.py` in this directory exposing:
+
+```python
+def run(
+    x: torch.Tensor,
+    residual: torch.Tensor,
+    weight: torch.Tensor,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    ...
+```
+
+Same signature as `reference.run`. Return a bf16 CUDA tensor of the same
+shape as `x`.
+
+`x`, `residual`, and `weight` are read-only inputs. **Do not mutate them.**
+Your `run` must return a new tensor (or one that doesn't alias any input).
+
+## How to evaluate
+
+Run `python harness.py` from this directory. It will:
+
+1. Build canonical inputs (deterministic seed). `weight` is sampled as
+   `0.1 * randn + 1.0` to keep RMSNorm output magnitudes representative
+   of trained-model weight statistics.
+2. Import your `candidate.run`.
+3. Run mutation check: confirms `x`, `residual`, `weight` are bytewise
+   unchanged after your call. **Mutation => `FAIL_MUTATION`, run aborts.**
+4. Run determinism check: calls `run(...)` twice on identical inputs and
+   requires the outputs to match in fp32 to better than 1e-6 RMSE. Any
+   non-deterministic kernel => `FAIL_NONDETERMINISTIC`, run aborts.
+5. Check correctness vs `reference.run` against **two** tolerance tiers:
+   - `standard`: cos_sim >= 0.95, l1_rel <= 0.05, rmse <= 0.10.
+   - `strict`  : cos_sim >= 0.99, l1_rel <= 0.01, rmse <= 0.01.
+6. If standard passes, benchmark with
+   `triton.testing.do_bench(..., return_mode="median")` (25 warmup × 100
+   reps) and print median latency in microseconds.
+7. Print a JSON summary at the end.
+
+Verdict ladder (highest -> lowest):
+
+- `PASS_STRICT` — passes strict tolerance + non-mutating + deterministic.
+- `PASS`        — passes standard tolerance + non-mutating + deterministic.
+- `FAIL_MUTATION`
+- `FAIL_NONDETERMINISTIC`
+- `FAIL_CORRECTNESS`
+- `ERROR`
+
+**Aim for `PASS_STRICT`.** Doing the reduction and rsqrt in fp32 (what
+inductor does) is well within strict tolerance. Pure-bf16 reductions on
+2048 elements drift outside strict — don't do that.
+
+## Target
+
+Inductor's fused kernel
+(`triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9`) on
+this exact shape/dtype, measured standalone with
+`triton.testing.do_bench(..., return_mode="median")`, runs in
+**~35.8 microseconds** on this hardware. That is the number to beat.
+The harness reports `speedup_vs_inductor = 35.8 / candidate_us`.
+
+For context: the eager PyTorch reference on this hardware measures around
+~80-100 us (multiple kernel launches: add, pow, mean, rsqrt, mul, mul,
+cast). Inductor's fused kernel is ~2-3x over eager. **Remaining headroom
+over inductor is modest** — single-digit microseconds, not 2x.
+
+(Earlier ranking tables cited 258.8 us as the baseline. That number came
+from a profiler aggregate over 130 call sites and is **not** the
+codegen-vs-codegen baseline. The harness uses the standalone microbench
+number, ~35.8 us, as the ground truth.)
+
+## Hardware
+
+NVIDIA GB10 (Blackwell, sm_121), 48 SMs, unified LPDDR5X (~273 GB/s peak).
+PyTorch 2.12 nightly cu128, Triton 3.7. This op is bandwidth-bound but
+also has a per-row reduction across the hidden dim (2048).
+
+## Allowed approaches
+
+- **Triton** kernels via `triton.jit` — recommended path, matches inductor.
+- **Raw CUDA** via `torch.utils.cpp_extension.load_inline` or similar.
+- Any other approach that produces a working Python `run(x, residual, weight, eps)`.
+
+## Forbidden
+
+- `torch.compile`, `@torch.compile`, `torch.jit.script`, `torch.jit.trace`.
+  We are measuring **your** codegen, not the inductor compiler.
+- Calling out to `reference.run` (defeats the purpose).
+- Mutating `x`, `residual`, or `weight`.
+- Non-deterministic kernels (e.g. atomic adds in non-associative order).
+
+## Profiling tools available
+
+- `triton.testing.do_bench` — preferred microbenchmark.
+- `nsys`, `ncu` — system / kernel profilers (slower; use sparingly).
+- You may write your own scratch scripts; just make sure `candidate.py` is
+  the final artifact.
+
+## Iteration budget
+
+You have up to 5 attempts. After each `python harness.py` run, look at the
+`verdict`, `correctness.reasons`, `correctness_strict.reasons`, and the
+latency, then try to improve.
+
+Things to think about:
+
+- Block size. Inductor picked `XBLOCK=2, R0_BLOCK=1024, num_warps=8,
+  num_stages=1` (so 256 grid programs, each handling 2 rows × 2048 cols).
+  That's not necessarily optimal — try wider XBLOCK (more rows per
+  program), or a single-pass (no two-pass over R0) layout if you can fit
+  the full row in registers (R0=2048 fits comfortably in 8 warps).
+- **Single-pass vs two-pass.** Inductor's `_9` is a two-pass reduction
+  (load row, accumulate `s^2` sum, then reload row, normalize, store).
+  At hidden=2048 the whole row fits in registers — a one-pass layout
+  (load row once into a register tile, compute sum cross-lane, broadcast,
+  multiply, store) saves ~half the memory traffic on `x` and `residual`.
+- fp32 accumulation, bf16 storage. Don't skip the fp32 cast or strict
+  tolerance will fail.
+- Vectorized loads (load 2 bf16 = 1 int32 = 4 bytes, or wider).
+- Number of warps. 8 warps × 32 threads = 256 threads / row of 2048
+  means each thread owns 8 elements — fits nicely.
+
+Good luck.
+
+## Eager reference implementation
+
+```python
+"""Eager PyTorch reference for the residual-add + RMSNorm fused op.
+
+This matches inductor's `triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9`,
+which fuses a single residual-add into the RMSNorm preamble:
+
+    s = (x + residual).float()          # bf16 -> fp32 for the reduction
+    var = s.pow(2).mean(-1, keepdim=True)
+    out = (s * rsqrt(var + eps)) * weight.float()
+    return out.to(x.dtype)              # bf16
+
+Notes on the contract:
+- The residual-add result is consumed by the rsqrt branch only -- inductor does
+  NOT write the post-add residual back to memory (it lives in registers).
+  So `run` returns a single tensor: the RMSNorm output.
+- `x`, `residual`, and `weight` are read-only inputs; we MUST NOT mutate them.
+- All arithmetic is done in fp32 internally to match inductor's `to(fp32)`
+  conversion (the .to(fp32) -> .to(fp32) -> mul -> store is what the kernel
+  emits), then cast back to bf16 on the store.
+"""
+from __future__ import annotations
+
+import torch
+
+EPS_DEFAULT = 1e-6
+
+
+def run(
+    x: torch.Tensor,
+    residual: torch.Tensor,
+    weight: torch.Tensor,
+    eps: float = EPS_DEFAULT,
+) -> torch.Tensor:
+    """Fused residual-add + RMSNorm.
+
+    Args:
+        x: bf16 CUDA tensor, shape (..., H).
+        residual: bf16 CUDA tensor, broadcastable to x along the leading
+            dims (in the canonical inductor case, x is (1, 512, H) and
+            residual is (512, H)).
+        weight: bf16 CUDA tensor, shape (H,).
+        eps: small float for numerical stability inside rsqrt.
+
+    Returns:
+        bf16 CUDA tensor of the same shape as x.
+    """
+    out_dtype = x.dtype
+    # Promote to fp32 for the reduction and the rsqrt -- matches inductor's
+    # .to(tl.float32) on every load.
+    s = x.to(torch.float32) + residual.to(torch.float32)
+    var = s.pow(2).mean(dim=-1, keepdim=True)
+    inv = torch.rsqrt(var + eps)
+    out = s * inv * weight.to(torch.float32)
+    return out.to(out_dtype)
+```
+
+## Candidate kernels
+
+### KERNEL_A
+
+```python
+"""Fast Triton kernel for fused residual-add + RMSNorm.
+
+Mimics inductor's 2D layout with a single tile (R0_BLOCK=2048)
+so the loop over the reduction dimension runs exactly once.
+Uses eviction-policy hints matching inductor's codegen.
+"""
+from __future__ import annotations
+
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def _rmsnorm_kernel(
+    x_ptr,
+    res_ptr,
+    w_ptr,
+    out_ptr,
+    num_rows,
+    row_stride,
+    eps: tl.constexpr,
+    N: tl.constexpr,
+    XBLOCK: tl.constexpr,
+    R0_BLOCK: tl.constexpr,
+):
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)[:, None]
+    xmask = xindex < num_rows
+
+    r0_base = tl.arange(0, R0_BLOCK)[None, :]
+
+    # --- first pass: accumulate variance ---
+    _tmp6 = tl.full([XBLOCK, R0_BLOCK], 0.0, tl.float32)
+    for r0_offset in tl.range(0, N, R0_BLOCK):
+        r0_index = r0_offset + r0_base
+        r0_mask_tile = r0_index < N
+        tmp0 = tl.load(
+            x_ptr + (r0_index + row_stride * xindex),
+            r0_mask_tile & xmask,
+            eviction_policy='evict_last',
+            other=0.0,
+        ).to(tl.float32)
+        tmp1 = tl.load(
+            res_ptr + (r0_index + row_stride * xindex),
+            r0_mask_tile & xmask,
+            eviction_policy='evict_last',
+            other=0.0,
+        ).to(tl.float32)
+        tmp2 = tmp0 + tmp1
+        tmp4 = tmp2 * tmp2
+        tmp5 = tl.broadcast_to(tmp4, [XBLOCK, R0_BLOCK])
+        tmp7 = _tmp6 + tmp5
+        _tmp6 = tl.where(r0_mask_tile & xmask, tmp7, _tmp6)
+
+    tmp6 = tl.sum(_tmp6, 1)[:, None]
+
+    # --- second pass: write output ---
+    for r0_offset in tl.range(0, N, R0_BLOCK):
+        r0_index = r0_offset + r0_base
+        r0_mask_tile = r0_index < N
+        tmp8 = tl.load(
+            w_ptr + r0_index,
+            r0_mask_tile,
+            eviction_policy='evict_last',
+            other=0.0,
+        ).to(tl.float32)
+        tmp9 = tl.load(
+            x_ptr + (r0_index + row_stride * xindex),
+            r0_mask_tile & xmask,
+            eviction_policy='evict_first',
+            other=0.0,
+        ).to(tl.float32)
+        tmp10 = tl.load(
+            res_ptr + (r0_index + row_stride * xindex),
+            r0_mask_tile & xmask,
+            eviction_policy='evict_first',
+            other=0.0,
+        ).to(tl.float32)
+        tmp11 = tmp9 + tmp10
+        tmp14 = tmp6 / float(N)
+        tmp16 = tmp14 + eps
+        tmp17 = tl.math.rsqrt(tmp16)
+        tmp18 = tmp11 * tmp17
+        tmp20 = tmp8 * tmp18
+        tl.store(
+            out_ptr + (r0_index + row_stride * xindex),
+            tmp20.to(tl.bfloat16),
+            r0_mask_tile & xmask,
+        )
+
+
+def run(
+    x: torch.Tensor,
+    residual: torch.Tensor,
+    weight: torch.Tensor,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    x_2d = x.reshape(-1, x.shape[-1])
+    res_2d = residual.reshape(-1, residual.shape[-1])
+    out = torch.empty_like(x_2d)
+
+    num_rows, N = x_2d.shape
+    row_stride = x_2d.stride(0)
+
+    XBLOCK = 2
+    R0_BLOCK = 2048
+    grid = (triton.cdiv(num_rows, XBLOCK),)
+
+    _rmsnorm_kernel[grid](
+        x_2d,
+        res_2d,
+        weight,
+        out,
+        num_rows=num_rows,
+        row_stride=row_stride,
+        eps=eps,
+        N=N,
+        XBLOCK=XBLOCK,
+        R0_BLOCK=R0_BLOCK,
+        num_warps=8,
+        num_stages=1,
+    )
+    return out.reshape(x.shape)
+```
+
+### KERNEL_B
+
+```python
+from __future__ import annotations
+
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def _rmsnorm_residual_2d(
+    x_ptr,
+    residual_ptr,
+    weight_ptr,
+    out_ptr,
+    eps: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+):
+    rows = tl.program_id(0) * BLOCK_M + tl.arange(0, BLOCK_M)[:, None]
+    cols = tl.arange(0, BLOCK_N)[None, :]
+    offsets = rows * BLOCK_N + cols
+
+    s = tl.load(x_ptr + offsets, eviction_policy="evict_last").to(tl.float32)
+    s += tl.load(residual_ptr + offsets, eviction_policy="evict_last").to(tl.float32)
+
+    ss = tl.sum(s * s, 1)[:, None]
+    inv = tl.rsqrt(ss * (1.0 / 2048.0) + eps)
+    weight = tl.load(weight_ptr + cols, eviction_policy="evict_last").to(tl.float32)
+    tl.store(out_ptr + offsets, s * inv * weight)
+
+
+def run(
+    x: torch.Tensor,
+    residual: torch.Tensor,
+    weight: torch.Tensor,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    out = torch.empty_like(x)
+    _rmsnorm_residual_2d[(128,)](
+        x,
+        residual,
+        weight,
+        out,
+        eps,
+        BLOCK_M=4,
+        BLOCK_N=2048,
+        num_warps=8,
+        num_stages=1,
+    )
+    return out
+```
+
+### KERNEL_C
+
+```python
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def _rmsnorm_kernel(
+    X_ptr, R_ptr, W_ptr, OUT_ptr,
+    xnumel, r0_numel,
+    eps,
+    XBLOCK: tl.constexpr,
+    R0_BLOCK: tl.constexpr,
+):
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)[:, None]
+    xmask = xindex < xnumel
+    r0_base = tl.arange(0, R0_BLOCK)[None, :]
+    x0 = xindex
+
+    acc = tl.full([XBLOCK, R0_BLOCK], 0, tl.float32)
+    for r0_offset in tl.range(0, r0_numel, R0_BLOCK):
+        r0_index = r0_offset + r0_base
+        r0_mask = r0_index < r0_numel
+        m = r0_mask & xmask
+        off = r0_index + r0_numel * x0
+        a = tl.load(X_ptr + off, m, eviction_policy='evict_last', other=0.0).to(tl.float32)
+        b = tl.load(R_ptr + off, m, eviction_policy='evict_last', other=0.0).to(tl.float32)
+        s = a + b
+        sq = s * s
+        acc = tl.where(m, acc + sq, acc)
+    sum_sq = tl.sum(acc, 1)[:, None]
+    inv = tl.rsqrt(sum_sq * (1.0 / r0_numel) + eps)
+
+    for r0_offset in tl.range(0, r0_numel, R0_BLOCK):
+        r0_index = r0_offset + r0_base
+        r0_mask = r0_index < r0_numel
+        m = r0_mask & xmask
+        off = r0_index + r0_numel * x0
+        w = tl.load(W_ptr + r0_index, r0_mask, eviction_policy='evict_last', other=0.0).to(tl.float32)
+        a = tl.load(X_ptr + off, m, eviction_policy='evict_first', other=0.0).to(tl.float32)
+        b = tl.load(R_ptr + off, m, eviction_policy='evict_first', other=0.0).to(tl.float32)
+        s = a + b
+        out = s * inv * w
+        tl.store(OUT_ptr + off, out.to(OUT_ptr.dtype.element_ty), m)
+
+
+def run(
+    x: torch.Tensor,
+    residual: torch.Tensor,
+    weight: torch.Tensor,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    out = torch.empty_like(x)
+    N = x.shape[-1]
+    M = x.numel() // N
+    grid = (M,)
+    _rmsnorm_kernel[grid](
+        x, residual, weight, out,
+        M, N, eps,
+        XBLOCK=1, R0_BLOCK=1024,
+        num_warps=2, num_stages=1,
+    )
+    return out
+```
+
+### KERNEL_D
+
+```python
+
+import triton
+import triton.language as tl
+
+from torch._inductor.runtime import triton_helpers, triton_heuristics
+from torch._inductor.runtime.triton_helpers import libdevice, math as tl_math
+from torch._inductor.runtime.hints import AutotuneHint, ReductionHint, TileHint, DeviceProperties
+triton_helpers.set_driver_to_gpu()
+
+@triton_heuristics.reduction(
+    size_hints={'x': 4096, 'r0_': 2048},
+    reduction_hint=ReductionHint.INNER,
+    filename=__file__,
+    triton_meta={'signature': {'in_ptr0': '*bf16', 'in_ptr1': '*bf16', 'in_ptr2': '*bf16', 'out_ptr1': '*bf16', 'xnumel': 'i32', 'r0_numel': 'i32', 'XBLOCK': 'constexpr', 'R0_BLOCK': 'constexpr'}, 'device': DeviceProperties(type='cuda', index=0, multi_processor_count=48, cc=121, major=12, regs_per_multiprocessor=65536, max_threads_per_multi_processor=1536, max_threads_per_block=1024, warp_size=32), 'constants': {}, 'native_matmul': False, 'enable_fp_fusion': True, 'launch_pdl': False, 'disable_ftz': False, 'configs': [{(0,): [['tt.divisibility', 16]], (1,): [['tt.divisibility', 16]], (2,): [['tt.divisibility', 16]], (3,): [['tt.divisibility', 16]], (4,): [['tt.divisibility', 16]], (5,): [['tt.divisibility', 16]]}]},
+    inductor_meta={'grid_type': 'Grid1D', 'autotune_hints': set(), 'kernel_name': 'triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9', 'mutated_arg_names': [], 'optimize_mem': True, 'no_x_dim': False, 'atomic_add_found': False, 'num_load': 5, 'num_store': 1, 'num_reduction': 1, 'backend_hash': 'F26D6A7434BEBEE3558734F2AEA99A4FDF9682E2121B0D40DD978F26BD1DF547', 'assert_indirect_indexing': True, 'autotune_local_cache': True, 'autotune_pointwise': True, 'autotune_remote_cache': None, 'force_disable_caches': False, 'dynamic_scale_rblock': True, 'max_autotune': False, 'max_autotune_pointwise': False, 'min_split_scan_rblock': 256, 'spill_threshold': 16, 'store_cubin': False, 'deterministic': False, 'force_filter_reduction_configs': False, 'mix_order_reduction_allow_multi_stages': False, 'are_deterministic_algorithms_enabled': False, 'tiling_scores': {'x': 0, 'r0_': 67112960}}
+)
+@triton.jit
+def triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9(in_ptr0, in_ptr1, in_ptr2, out_ptr1, xnumel, r0_numel, XBLOCK : tl.constexpr, R0_BLOCK : tl.constexpr):
+    xnumel = 4096
+    r0_numel = 2048
+    rnumel = r0_numel
+    RBLOCK: tl.constexpr = R0_BLOCK
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)[:, None]
+    xmask = tl.full([XBLOCK], True, tl.int1)[:, None]
+    r0_base = tl.arange(0, R0_BLOCK)[None, :]
+    rbase = r0_base
+    x0 = xindex
+    _tmp6 = tl.full([XBLOCK, R0_BLOCK], 0, tl.float32)
+    for r0_offset in tl.range(0, r0_numel, R0_BLOCK):
+        r0_index = r0_offset + r0_base
+        r0_mask = r0_index < r0_numel
+        roffset = r0_offset
+        rindex = r0_index
+        r0_1 = r0_index
+        tmp0 = tl.load(in_ptr0 + (r0_1 + 2048*x0), r0_mask, eviction_policy='evict_last', other=0.0).to(tl.float32)
+        tmp1 = tl.load(in_ptr1 + (r0_1 + 2048*x0), r0_mask, eviction_policy='evict_last', other=0.0).to(tl.float32)
+        tmp2 = tmp0 + tmp1
+        tmp3 = tmp2.to(tl.float32)
+        tmp4 = tmp3 * tmp3
+        tmp5 = tl.broadcast_to(tmp4, [XBLOCK, R0_BLOCK])
+        tmp7 = _tmp6 + tmp5
+        _tmp6 = tl.where(r0_mask, tmp7, _tmp6)
+    tmp6 = tl.sum(_tmp6, 1)[:, None]
+    for r0_offset in tl.range(0, r0_numel, R0_BLOCK):
+        r0_index = r0_offset + r0_base
+        r0_mask = r0_index < r0_numel
+        roffset = r0_offset
+        rindex = r0_index
+        r0_1 = r0_index
+        tmp8 = tl.load(in_ptr2 + (r0_1), r0_mask, eviction_policy='evict_last', other=0.0).to(tl.float32)
+        tmp9 = tl.load(in_ptr0 + (r0_1 + 2048*x0), r0_mask, eviction_policy='evict_first', other=0.0).to(tl.float32)
+        tmp10 = tl.load(in_ptr1 + (r0_1 + 2048*x0), r0_mask, eviction_policy='evict_first', other=0.0).to(tl.float32)
+        tmp11 = tmp9 + tmp10
+        tmp12 = tmp11.to(tl.float32)
+        tmp13 = tl.full([1, 1], 2048.0, tl.float32)
+        tmp14 = (tmp6 / tmp13)
+        tmp15 = tl.full([1, 1], 1e-06, tl.float32)
+        tmp16 = tmp14 + tmp15
+        tmp17 = libdevice.rsqrt(tmp16)
+        tmp18 = tmp12 * tmp17
+        tmp19 = tmp18.to(tl.float32)
+        tmp20 = tmp8 * tmp19
+        tl.store(out_ptr1 + (r0_1 + 2048*x0), tmp20, r0_mask)
+```
+
+## Your task
+
+**Rubric (1-5 scale, where 1=poor, 5=excellent):**
+1. **Correctness reasoning** -- does the code make it easy to convince yourself the math is right? Are there obvious tolerance hazards (e.g. bf16 intermediate where fp32 is needed, missing fp32 promotion of accumulators)?
+2. **Performance reasoning** -- block sizing, load coalescing, register pressure, choice of fusion boundaries. Can you predict if it's fast just from reading?
+3. **Readability** -- variable naming, structure, comments where they earn their keep.
+4. **Code length** -- right-sized for the job, or under/over-engineered?
+5. **Risk** -- would you ship this to production? What's the failure mode you'd worry about?
+
+For each of KERNEL_A, KERNEL_B, KERNEL_C, KERNEL_D, give a score on each of the 5 rubric dimensions plus a 2-4 sentence rationale.
+
+Then answer one **forced-rank** question:
+> If you had to ship exactly ONE of A/B/C/D to production, which would it be, and why? Limit yourself to ~4 sentences.
+
+Format your response as markdown with sections `## KERNEL_A`, `## KERNEL_B`, `## KERNEL_C`, `## KERNEL_D`, then `## Forced rank: ship one`.
+Under each kernel, present the 5 rubric scores as a small markdown table (dimension | score | one-line note).

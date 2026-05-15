@@ -1,0 +1,20 @@
+{
+  "prefill_512_b1": {
+    "n_distinct_triton": 14,
+    "n_distinct_aten": 2,
+    "triton_pct": 50.55025787913342,
+    "aten_pct": 49.449742120866574,
+    "top5_pct": 94.35326679388787,
+    "top10_pct": 99.87447314066567,
+    "top20_pct": 100.0
+  },
+  "decode_ctx512_b1": {
+    "n_distinct_triton": 16,
+    "n_distinct_aten": 4,
+    "triton_pct": 40.66434872654254,
+    "aten_pct": 59.33565127345746,
+    "top5_pct": 70.49219154833561,
+    "top10_pct": 95.27236371985774,
+    "top20_pct": 100.0
+  }
+}

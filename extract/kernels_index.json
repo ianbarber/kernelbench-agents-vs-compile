@@ -1,0 +1,629 @@
+{
+  "n_distinct_kernels_in_traces": 24,
+  "n_distinct_kernels_emitted_across_6_workloads": 24,
+  "per_workload_emitted_counts": {
+    "decode_ctx2048_b1": 24,
+    "decode_ctx2048_b8": 24,
+    "decode_ctx512_b1": 24,
+    "decode_ctx512_b8": 24,
+    "prefill_2048_b1": 14,
+    "prefill_512_b1": 14
+  },
+  "per_workload_emitted_kernels": {
+    "decode_ctx2048_b1": [
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3",
+      "triton_poi_fused__unsafe_view_cat_transpose_view_4",
+      "triton_poi_fused__unsafe_view_mul_silu_6",
+      "triton_poi_fused__unsafe_view_mul_silu_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+    ],
+    "decode_ctx2048_b8": [
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3",
+      "triton_poi_fused__unsafe_view_cat_transpose_view_4",
+      "triton_poi_fused__unsafe_view_mul_silu_6",
+      "triton_poi_fused__unsafe_view_mul_silu_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+    ],
+    "decode_ctx512_b1": [
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3",
+      "triton_poi_fused__unsafe_view_cat_transpose_view_4",
+      "triton_poi_fused__unsafe_view_mul_silu_6",
+      "triton_poi_fused__unsafe_view_mul_silu_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+    ],
+    "decode_ctx512_b8": [
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3",
+      "triton_poi_fused__unsafe_view_cat_transpose_view_4",
+      "triton_poi_fused__unsafe_view_mul_silu_6",
+      "triton_poi_fused__unsafe_view_mul_silu_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+    ],
+    "prefill_2048_b1": [
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "triton_poi_fused__unsafe_view_mul_silu_6",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+    ],
+    "prefill_512_b1": [
+      "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "triton_poi_fused__unsafe_view_mul_silu_6",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+    ]
+  },
+  "all_emitted_kernels": [
+    "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+    "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+    "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+    "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5",
+    "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+    "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+    "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+    "triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3",
+    "triton_poi_fused__unsafe_view_cat_transpose_view_4",
+    "triton_poi_fused__unsafe_view_mul_silu_6",
+    "triton_poi_fused__unsafe_view_mul_silu_8",
+    "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10",
+    "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+    "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+    "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+    "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15",
+    "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+    "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0"
+  ],
+  "n_kernels_with_source": 24,
+  "n_kernels_missing_source": 0,
+  "missing": [],
+  "index": [
+    {
+      "name": "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "kernel_path": "kernels/triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 1.8678684878259006
+      },
+      "invocations": {
+        "decode_ctx512_b1": 280
+      }
+    },
+    {
+      "name": "triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1",
+      "kernel_path": "kernels/triton_per_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_neg_new_ones_pow_rsqrt_scalar_tensor_sin_slice_transpose_unsqueeze_view_where_1/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 1.164395627848527
+      },
+      "invocations": {
+        "prefill_512_b1": 280
+      }
+    },
+    {
+      "name": "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "kernel_path": "kernels/triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "decode_ctx512_b8::model__7_inference_7.7",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 5.3832759626780105,
+        "decode_ctx512_b1": 0.8304384316434693
+      },
+      "invocations": {
+        "prefill_512_b1": 280,
+        "decode_ctx512_b1": 280
+      }
+    },
+    {
+      "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5",
+      "kernel_path": "kernels/triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_5/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 11.156540274878155
+      },
+      "invocations": {
+        "decode_ctx512_b1": 560
+      }
+    },
+    {
+      "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+      "kernel_path": "kernels/triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 7.658342135357407
+      },
+      "invocations": {
+        "decode_ctx512_b1": 140
+      }
+    },
+    {
+      "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3",
+      "kernel_path": "kernels/triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 24.986261189792014
+      },
+      "invocations": {
+        "prefill_512_b1": 560
+      }
+    },
+    {
+      "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "kernel_path": "kernels/triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 9.23642713005082
+      },
+      "invocations": {
+        "prefill_512_b1": 140
+      }
+    },
+    {
+      "name": "triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3",
+      "kernel_path": "kernels/triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_pow_rsqrt_transpose_unsqueeze_view_3/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 0.6084733608658447
+      },
+      "invocations": {
+        "decode_ctx512_b1": 280
+      }
+    },
+    {
+      "name": "triton_poi_fused__unsafe_view_cat_transpose_view_4",
+      "kernel_path": "kernels/triton_poi_fused__unsafe_view_cat_transpose_view_4/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 2.9419987608988465
+      },
+      "invocations": {
+        "decode_ctx512_b1": 280
+      }
+    },
+    {
+      "name": "triton_poi_fused__unsafe_view_mul_silu_6",
+      "kernel_path": "kernels/triton_poi_fused__unsafe_view_mul_silu_6/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 5.667538012661511
+      },
+      "invocations": {
+        "prefill_512_b1": 280
+      }
+    },
+    {
+      "name": "triton_poi_fused__unsafe_view_mul_silu_8",
+      "kernel_path": "kernels/triton_poi_fused__unsafe_view_mul_silu_8/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 1.4219610119829016
+      },
+      "invocations": {
+        "decode_ctx512_b1": 280
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_10/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 0.5214834023452396
+      },
+      "invocations": {
+        "decode_ctx512_b1": 10
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_5/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.003494805942704181
+      },
+      "invocations": {
+        "prefill_512_b1": 10
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "decode_ctx512_b8::model__7_inference_7.7",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.003526233650671882,
+        "decode_ctx512_b1": 0.5283169463923532
+      },
+      "invocations": {
+        "prefill_512_b1": 10,
+        "decode_ctx512_b1": 10
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_8/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.0036274633624323723
+      },
+      "invocations": {
+        "prefill_512_b1": 10
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_9/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 0.03414540748970879
+      },
+      "invocations": {
+        "decode_ctx512_b1": 10
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.06406686724520819
+      },
+      "invocations": {
+        "prefill_512_b1": 130
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_11/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "decode_ctx512_b8::model__7_inference_7.7",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 1.8916135190419059,
+        "decode_ctx512_b1": 0.3339617735912926
+      },
+      "invocations": {
+        "prefill_512_b1": 130,
+        "decode_ctx512_b1": 130
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_12/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "decode_ctx512_b8::model__7_inference_7.7",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.04437850061040512,
+        "decode_ctx512_b1": 6.150248611801894
+      },
+      "invocations": {
+        "prefill_512_b1": 130,
+        "decode_ctx512_b1": 130
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_13/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "decode_ctx512_b8::model__7_inference_7.7",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.21026128199787597,
+        "decode_ctx512_b1": 0.3685980614898902
+      },
+      "invocations": {
+        "prefill_512_b1": 10,
+        "decode_ctx512_b1": 130
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_14/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 6.161714175638071
+      },
+      "invocations": {
+        "decode_ctx512_b1": 130
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_15/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b8::model__7_inference_7.7"
+      ],
+      "walltime_pct": {
+        "decode_ctx512_b1": 0.028925818726365092
+      },
+      "invocations": {
+        "decode_ctx512_b1": 10
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9",
+      "kernel_path": "kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 1.8849582957284385
+      },
+      "invocations": {
+        "prefill_512_b1": 130
+      }
+    },
+    {
+      "name": "triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0",
+      "kernel_path": "kernels/triton_red_fused__to_copy_add_embedding_mean_mul_pow_rsqrt_0/kernel.py",
+      "found_in": [
+        "decode_ctx2048_b1::model__1_inference_1.1",
+        "decode_ctx2048_b1::model__0_inference_0.0",
+        "decode_ctx2048_b8::model__3_inference_3.3",
+        "decode_ctx2048_b8::model__2_inference_2.2",
+        "decode_ctx512_b1::model__5_inference_5.5",
+        "decode_ctx512_b1::model__4_inference_4.4",
+        "decode_ctx512_b8::model__6_inference_6.6",
+        "decode_ctx512_b8::model__7_inference_7.7",
+        "prefill_2048_b1::model__8_inference_8.8",
+        "prefill_512_b1::model__9_inference_9.9"
+      ],
+      "walltime_pct": {
+        "prefill_512_b1": 0.006432988522900207,
+        "decode_ctx512_b1": 0.051332065615198
+      },
+      "invocations": {
+        "prefill_512_b1": 10,
+        "decode_ctx512_b1": 10
+      }
+    }
+  ]
+}

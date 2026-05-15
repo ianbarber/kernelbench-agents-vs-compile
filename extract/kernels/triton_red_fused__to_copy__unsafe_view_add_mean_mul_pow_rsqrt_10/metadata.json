@@ -1,0 +1,87 @@
+{
+  "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+  "found_in": [
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_10",
+      "kind": "triton",
+      "total_us": 1143.6249999999995,
+      "pct_total": 0.06406686724520819,
+      "invocations": 130,
+      "mean_us": 8.797115384615381,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            512,
+            2048
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            2048
+          ],
+          [
+            1,
+            512,
+            2048
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            1048576,
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1048576,
+            2048,
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/sk/csktftihb4i4b2anbc6cny4dpnjzeyvnijqqekp5ueedol6p26gj.py",
+        "kernel_hash": "csktftihb4i4b2anbc6cny4dpnjzeyvnijqqekp5ueedol6p26gj",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=2,R0_BLOCK=1024"
+      }
+    }
+  }
+}

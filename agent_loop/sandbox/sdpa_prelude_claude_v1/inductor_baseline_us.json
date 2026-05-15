@@ -1,0 +1,32 @@
+{
+  "kernel_group": "sdpa_prelude (Q/K/V projection + per-head RMSNorm + RoPE + GQA expansion + causal mask)",
+  "median_us": 4045.73,
+  "note": "Standalone microbench of the full SDPA prelude as inductor emits it for prefill_512_b1: 3x cuBLAS mm (Q/K/V projections) + per_..._1 (Q per-head RMSNorm + RoPE) + per_..._2 (K per-head RMSNorm + RoPE) + 2x where_3 (KV GQA-expansion 8 -> 16 heads) + where_4 (causal+padding mask). Source: extract/microbench_inductor.json (key 'sdpa_prelude_us'). The harness uses this as the codegen-vs-codegen speedup baseline.",
+  "breakdown_us": {
+    "q_proj_mm": 610.27,
+    "k_proj_mm": 776.02,
+    "v_proj_mm": 1538.88,
+    "q_rmsnorm_rope": 29.81,
+    "k_rmsnorm_rope": 18.40,
+    "kv_expand_k": 23.55,
+    "kv_expand_v": 23.55,
+    "causal_mask": 9.18
+  },
+  "inductor_kernel_names": [
+    "extern_kernels.mm (cuBLAS) x3",
+    "triton_per_fused..._1 (Q norm+RoPE)",
+    "triton_per_fused..._2 (K norm+RoPE)",
+    "triton_poi_fused..._where_3 (GQA expand) x2",
+    "triton_poi_fused..._where_4 (causal mask)"
+  ],
+  "headline_kernel": "triton_poi_fused..._where_3 -- 24.99% of prefill_512_b1 walltime (across all call sites)",
+  "shapes": {
+    "hidden_states": [1, 512, 2048],
+    "q_out": [1, 16, 512, 128],
+    "k_out": [1, 16, 512, 128],
+    "v_out": [1, 16, 512, 128],
+    "mask_out": [1, 1, 512, 512]
+  },
+  "dtype": "bf16",
+  "hardware": "NVIDIA GB10 Blackwell (sm_121), 48 SMs, unified LPDDR5X"
+}

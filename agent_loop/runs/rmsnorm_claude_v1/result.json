@@ -1,0 +1,44 @@
+{
+  "cli": "claude",
+  "task": "rmsnorm",
+  "run_id": "rmsnorm_claude_v1",
+  "wall_clock_s": 405.9361495561898,
+  "mean_gpu_util_pct": 10.091603053435115,
+  "gpu_util_n_samples": 393,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.999999999846219,
+      "l1_rel": 3.5037405865523397e-08,
+      "rmse": 1.7584885426913388e-05,
+      "reasons": []
+    },
+    "correctness_strict": {
+      "pass": true,
+      "cos_sim": 0.999999999846219,
+      "l1_rel": 3.5037405865523397e-08,
+      "rmse": 1.7584885426913388e-05,
+      "reasons": []
+    },
+    "mutates_x": false,
+    "mutates_residual": false,
+    "mutates_weight": false,
+    "deterministic": true,
+    "determinism_rmse": 0.0,
+    "candidate_us": 29.69600073993206,
+    "reference_us": 169.88800466060638,
+    "inductor_baseline_us": 34.81600061058998,
+    "speedup_vs_inductor": 1.1724137844518936,
+    "verdict": "PASS_STRICT"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/rmsnorm_claude_v1/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/rmsnorm_claude_v1",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/rmsnorm_claude_v1",
+  "started_at": "2026-05-15T02:16:14.647825+00:00",
+  "ended_at": "2026-05-15T02:23:00.583981+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

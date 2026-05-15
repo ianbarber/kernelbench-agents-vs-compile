@@ -1,0 +1,170 @@
+{
+  "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+  "found_in": [
+    "decode_ctx2048_b1::model__1_inference_1.1",
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__3_inference_3.3",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__5_inference_5.5",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "decode_ctx512_b8::model__7_inference_7.7",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "kind": "triton",
+      "total_us": 62.945,
+      "pct_total": 0.003526233650671882,
+      "invocations": 10,
+      "mean_us": 6.2945,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            512
+          ],
+          [
+            151936,
+            2048
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            512,
+            2048
+          ],
+          [
+            2048
+          ],
+          [
+            1,
+            512,
+            2048
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            512,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1048576,
+            2048,
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "long int",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/qq/cqqmw7kxzel2rsm3eceqj6dee5fqimoiyxi3mzbyybpnqlhq3nha.py",
+        "kernel_hash": "cqqmw7kxzel2rsm3eceqj6dee5fqimoiyxi3mzbyybpnqlhq3nha",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=2,R0_BLOCK=1024"
+      }
+    },
+    "decode_ctx512_b1": {
+      "name": "triton_red_fused__to_copy__unsafe_view_add_embedding_mean_mul_pow_rsqrt_7",
+      "kind": "triton",
+      "total_us": 994.468,
+      "pct_total": 0.5283169463923532,
+      "invocations": 10,
+      "mean_us": 99.4468,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            1
+          ],
+          [
+            151936,
+            2048
+          ],
+          [
+            1,
+            2048
+          ],
+          [
+            2048
+          ],
+          [
+            1,
+            1,
+            2048
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            1,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            2048,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            2048,
+            2048,
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "long int",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/63/c63m6yfrasepwyu64qpzoitdxhla5mfaayvmsjtlbdp4vlxpv3cy.py",
+        "kernel_hash": "c63m6yfrasepwyu64qpzoitdxhla5mfaayvmsjtlbdp4vlxpv3cy",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=1,R0_BLOCK=1024"
+      }
+    }
+  }
+}

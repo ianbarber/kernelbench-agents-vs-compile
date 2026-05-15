@@ -1,0 +1,43 @@
+{
+  "cli": "claude",
+  "task": "swiglu",
+  "run_id": "swiglu_claude_strict",
+  "wall_clock_s": 1200.0169763462618,
+  "mean_gpu_util_pct": 6.45197255574614,
+  "gpu_util_n_samples": 1166,
+  "cli_exit_code": -1,
+  "cli_timed_out": true,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999958666720676,
+      "l1_rel": 0.0014892624458298087,
+      "rmse": 0.0017213962273672223,
+      "reasons": []
+    },
+    "correctness_strict": {
+      "pass": true,
+      "cos_sim": 0.9999958666720676,
+      "l1_rel": 0.0014892624458298087,
+      "rmse": 0.0017213962273672223,
+      "reasons": []
+    },
+    "mutates_x": false,
+    "mutates_y": false,
+    "deterministic": true,
+    "determinism_rmse": 0.0,
+    "candidate_us": 118.78400295972824,
+    "reference_us": 138.14400136470795,
+    "inductor_baseline_us": 109.6000000834465,
+    "speedup_vs_inductor": 0.9226831673672807,
+    "verdict": "PASS_STRICT"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/swiglu_claude_strict/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_claude_strict",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/swiglu_claude_strict",
+  "started_at": "2026-05-15T01:27:43.455964+00:00",
+  "ended_at": "2026-05-15T01:47:43.472947+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

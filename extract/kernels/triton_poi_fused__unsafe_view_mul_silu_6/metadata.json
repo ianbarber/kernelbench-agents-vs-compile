@@ -1,0 +1,57 @@
+{
+  "name": "triton_poi_fused__unsafe_view_mul_silu_6",
+  "found_in": [
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_poi_fused__unsafe_view_mul_silu_6",
+      "kind": "triton",
+      "total_us": 101168.33300000007,
+      "pct_total": 5.667538012661511,
+      "invocations": 280,
+      "mean_us": 361.3154750000003,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            512,
+            6144
+          ],
+          [
+            512,
+            6144
+          ],
+          []
+        ],
+        "Input Strides": [
+          [
+            3145728,
+            6144,
+            1
+          ],
+          [
+            6144,
+            1
+          ],
+          []
+        ],
+        "Input type": [
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/qq/cqqkt3v4gmqxre3qm5kjabchbnxcfn36tkhjhktomoisk7bs6gbj.py",
+        "kernel_hash": "cqqkt3v4gmqxre3qm5kjabchbnxcfn36tkhjhktomoisk7bs6gbj",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=512"
+      }
+    }
+  }
+}

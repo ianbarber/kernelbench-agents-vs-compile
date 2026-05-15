@@ -1,0 +1,111 @@
+{
+  "cli": "kimi",
+  "task": "sdpa_prelude",
+  "run_id": "sdpa_prelude_kimi_v1",
+  "wall_clock_s": 980.9998281626031,
+  "mean_gpu_util_pct": 0.0,
+  "gpu_util_n_samples": 950,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "per_output": {
+        "q": {
+          "pass": true,
+          "cos_sim": 0.9999959114613979,
+          "l1_rel": 0.0015266198897734284,
+          "rmse": 0.0028890420217067003,
+          "reasons": []
+        },
+        "k": {
+          "pass": true,
+          "cos_sim": 0.9999959301158036,
+          "l1_rel": 0.0015191982965916395,
+          "rmse": 0.002882093656808138,
+          "reasons": []
+        },
+        "v": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        },
+        "mask": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        }
+      },
+      "reasons": []
+    },
+    "correctness_strict": {
+      "pass": true,
+      "per_output": {
+        "q": {
+          "pass": true,
+          "cos_sim": 0.9999959114613979,
+          "l1_rel": 0.0015266198897734284,
+          "rmse": 0.0028890420217067003,
+          "reasons": []
+        },
+        "k": {
+          "pass": true,
+          "cos_sim": 0.9999959301158036,
+          "l1_rel": 0.0015191982965916395,
+          "rmse": 0.002882093656808138,
+          "reasons": []
+        },
+        "v": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        },
+        "mask": {
+          "pass": true,
+          "cos_sim": 1.0,
+          "l1_rel": 0.0,
+          "rmse": 0.0,
+          "reasons": []
+        }
+      },
+      "reasons": []
+    },
+    "mutations": {
+      "hidden_states": false,
+      "w_q": false,
+      "w_k": false,
+      "w_v": false,
+      "w_q_norm": false,
+      "w_k_norm": false,
+      "inv_freq": false,
+      "position_ids": false,
+      "attention_mask": false
+    },
+    "deterministic": true,
+    "determinism_rmse": {
+      "q": 0.0,
+      "k": 0.0,
+      "v": 0.0,
+      "mask": 0.0
+    },
+    "candidate_us": 1034.2400074005127,
+    "reference_us": 1994.7839975357056,
+    "inductor_baseline_us": 4045.7282066345215,
+    "speedup_vs_inductor": 3.911788538139388,
+    "verdict": "PASS_STRICT"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/sdpa_prelude_kimi_v1/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/sdpa_prelude_kimi_v1",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/sdpa_prelude_kimi_v1",
+  "started_at": "2026-05-15T03:53:09.471881+00:00",
+  "ended_at": "2026-05-15T04:09:30.471714+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

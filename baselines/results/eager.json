@@ -1,0 +1,62 @@
+{
+  "decode_ctx2048_b1": {
+    "median_ms": 32.50787162780762,
+    "p10_ms": 32.30390548706055,
+    "p90_ms": 32.30390548706055,
+    "peak_mem_bytes": 4218096128,
+    "tokens_per_sec": 30.76178014510763,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 2048
+  },
+  "decode_ctx2048_b8": {
+    "median_ms": 175.3985595703125,
+    "p10_ms": 175.3985595703125,
+    "p90_ms": 175.3985595703125,
+    "peak_mem_bytes": 7539140096,
+    "tokens_per_sec": 45.61040877187488,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 2048
+  },
+  "decode_ctx512_b1": {
+    "median_ms": 29.61612892150879,
+    "p10_ms": 28.773279190063477,
+    "p90_ms": 29.222944259643555,
+    "peak_mem_bytes": 3863648768,
+    "tokens_per_sec": 33.76538516057538,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 512
+  },
+  "decode_ctx512_b8": {
+    "median_ms": 140.33692932128906,
+    "p10_ms": 140.33692932128906,
+    "p90_ms": 140.33692932128906,
+    "peak_mem_bytes": 4695156224,
+    "tokens_per_sec": 57.005665142385325,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 512
+  },
+  "prefill_2048_b1": {
+    "median_ms": 850.8474731445312,
+    "p10_ms": 850.8474731445312,
+    "p90_ms": 850.8474731445312,
+    "peak_mem_bytes": 4997809152,
+    "tokens_per_sec": 2407.0119082931233,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 2048
+  },
+  "prefill_512_b1": {
+    "median_ms": 247.32444763183594,
+    "p10_ms": 247.32444763183594,
+    "p90_ms": 247.32444763183594,
+    "peak_mem_bytes": 4056949760,
+    "tokens_per_sec": 2070.1552349655167,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 512
+  }
+}

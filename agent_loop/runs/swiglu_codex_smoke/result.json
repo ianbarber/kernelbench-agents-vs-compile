@@ -1,0 +1,32 @@
+{
+  "cli": "codex",
+  "task": "swiglu",
+  "run_id": "swiglu_codex_smoke",
+  "wall_clock_s": 302.0103099318221,
+  "mean_gpu_util_pct": 1.5494880546075085,
+  "gpu_util_n_samples": 293,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9984824870855509,
+      "l1_rel": 0.04411628842353821,
+      "rmse": 0.03524008020758629,
+      "reasons": []
+    },
+    "candidate_us": 107.4719987809658,
+    "reference_us": 138.17599415779114,
+    "inductor_baseline_us": 361.3154750000003,
+    "speedup_vs_inductor": 3.3619498948408157,
+    "verdict": "PASS"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/swiglu_codex_smoke/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_codex_smoke",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/swiglu_codex_smoke",
+  "started_at": "2026-05-14T23:31:26.710349+00:00",
+  "ended_at": "2026-05-14T23:36:28.720665+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

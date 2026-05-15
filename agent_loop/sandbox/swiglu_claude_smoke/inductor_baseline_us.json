@@ -1,0 +1,5 @@
+{
+  "kernel": "triton_poi_fused__unsafe_view_mul_silu_6",
+  "mean_us": 361.3154750000003,
+  "median_us_from_do_bench": null
+}

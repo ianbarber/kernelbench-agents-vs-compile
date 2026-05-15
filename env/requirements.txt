@@ -1,0 +1,17 @@
+# Pinned via the install command for the right index URL.
+# Install PyTorch nightly with CUDA 12.8 (Blackwell sm_120/sm_121 support).
+# Use: pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128
+#
+# The packages below are installed from PyPI (no special index needed).
+# Triton is bundled with torch nightly; we do not pin it separately so we
+# pick up whatever the nightly ships (Blackwell support landed in Triton 3.2+).
+
+transformers>=4.51.0      # Qwen3 support landed in 4.51
+accelerate>=1.0.0
+safetensors>=0.4.5
+huggingface_hub>=0.26.0
+numpy>=2.0
+psutil>=6.0
+nvitop>=1.4
+sentencepiece>=0.2.0
+protobuf>=4.25

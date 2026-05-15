@@ -1,0 +1,343 @@
+# Code review: swiglu Triton kernels
+
+You are reviewing four candidate Triton kernel implementations of the same task. Three were written by AI coding agents; one was emitted by torch.inductor. **You do not know which is which.** Review them all on their merits.
+
+Inductor context: single emitted Triton kernel for SwiGLU (silu(x_gate) * x_up)
+
+## Task description
+
+# Task: Beat inductor's SwiGLU kernel
+
+## What
+
+Write a fast GPU kernel that computes the SwiGLU element-wise op on bf16
+tensors:
+
+```
+out = silu(x) * y         # silu(x) = x / (1 + exp(-x))
+```
+
+The canonical input shape is `(1, 512, 6144)` bf16 (the prefill_512_b1 shape
+from the Qwen3-1.7B workload). Total elements: 25,165,824. Memory footprint:
+2 inputs * 25.2M * 2 bytes ~= 100 MB in, 50 MB out. This op is bandwidth-bound.
+
+The eager PyTorch reference is provided in `reference.py`:
+
+```python
+import torch
+def run(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    return torch.nn.functional.silu(x) * y
+```
+
+## Where to put your code
+
+You must produce a Python module at `candidate.py` in this directory exposing:
+
+```python
+def run(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    ...
+```
+
+Same signature as `reference.run`. `x` and `y` are bf16 CUDA tensors of shape
+`(1, 512, 6144)`. Return a bf16 CUDA tensor of the same shape.
+
+`x` and `y` are read-only inputs. **Do not mutate them.** Your `run` must
+return a new tensor (or a tensor that does not alias `x` or `y`).
+
+## How to evaluate
+
+Run `python harness.py` from this directory. It will:
+
+1. Build canonical inputs (deterministic seed).
+2. Import your `candidate.run`.
+3. Run mutation check: confirms `x` and `y` are bytewise unchanged after
+   your call. **Mutating either input => `FAIL_MUTATION`, run aborts.**
+4. Run determinism check: calls `run(x, y)` twice on identical inputs and
+   requires the outputs to match in fp32 to better than 1e-6 RMSE. Any
+   non-deterministic kernel => `FAIL_NONDETERMINISTIC`, run aborts.
+5. Check correctness vs `reference.run` against **two** tolerance tiers:
+   - `standard`: cos_sim >= 0.95, l1_rel <= 0.05, rmse <= 0.10.
+   - `strict`  : cos_sim >= 0.99, l1_rel <= 0.01, rmse <= 0.01.
+6. If the standard tier passes, benchmark with
+   `triton.testing.do_bench(..., return_mode="median")` and print median
+   latency in microseconds.
+7. Print a JSON summary at the end.
+
+Verdict ladder (highest -> lowest):
+
+- `PASS_STRICT` — passes strict tolerance + non-mutating + deterministic.
+- `PASS`        — passes standard tolerance + non-mutating + deterministic.
+- `FAIL_MUTATION`
+- `FAIL_NONDETERMINISTIC`
+- `FAIL_CORRECTNESS`
+- `ERROR`
+
+**Aim for `PASS_STRICT`.** A `PASS` (standard-but-not-strict) implies your
+output drifts further from eager than necessary; it is reported but is not
+the goal. Approximation tricks (e.g. sigmoid clamping, low-order polynomial
+silu approximations, hard-coded sigmoid lookup tables) will typically blow
+through strict tolerance — don't use them. Standard silu in fp32 then cast
+to bf16 (what inductor does) is well within strict tolerance.
+
+## Target
+
+Inductor's fused kernel (`triton_poi_fused__unsafe_view_mul_silu_6`) on this
+exact shape/dtype, measured standalone with `triton.testing.do_bench(...,
+return_mode="median")`, runs in **~109.6 microseconds** on this hardware.
+That is the number to beat. The harness reports `speedup_vs_inductor =
+109.6 / candidate_us`.
+
+For context: the eager PyTorch reference (`silu(x) * y`) on this hardware
+measures ~140 microseconds. So inductor's fused kernel is already ~1.3x
+over eager. **The remaining headroom over inductor is small** — single-
+digit microseconds, not 3x. Don't expect to halve the time; expect to
+shave 5-15%.
+
+(Earlier task descriptions cited 361 us as the baseline. That number came
+from a profiler aggregate over multiple call sites and is **not** the
+codegen-vs-codegen baseline. The harness now uses the standalone
+microbench number, ~109.6 us, as the ground truth.)
+
+## Hardware
+
+NVIDIA GB10 (Blackwell, sm_121), 48 SMs, unified LPDDR5X. PyTorch 2.12 nightly
+cu128, Triton 3.7. This op is **memory-bandwidth-bound**; the theoretical
+lower bound is set by reading 100 MB and writing 50 MB.
+
+## Allowed approaches
+
+- **Triton** kernels via `triton.jit` — recommended path, matches what inductor
+  produced.
+- **Raw CUDA** via `torch.utils.cpp_extension.load_inline` or similar.
+- Any other approach that produces a working Python `run(x, y)` function.
+
+## Forbidden
+
+- `torch.compile`, `@torch.compile`, `torch.jit.script`, `torch.jit.trace`. We
+  are measuring **your** codegen, not the inductor compiler.
+- Calling out to `reference.run` (defeats the purpose).
+- Mutating `x` or `y`.
+- Non-deterministic kernels (e.g. atomic adds in non-associative order).
+
+## Profiling tools available
+
+- `triton.testing.do_bench` — preferred microbenchmark.
+- `nsys`, `ncu` — system / kernel profilers (slower; use sparingly).
+- You may write your own scratch scripts; just make sure `candidate.py` is the
+  final artifact.
+
+## Iteration budget
+
+You have up to 5 attempts. After each `python harness.py` run, look at the
+`verdict`, `correctness.reasons`, `correctness_strict.reasons`, and the
+latency, then try to improve. Things to think about:
+
+- Block size (XBLOCK in inductor parlance). Inductor used 512 threads, 8 warps,
+  1 stage.
+- Compute silu in fp32 then cast back (inductor does this; passes strict).
+  Doing it fully in bf16 saves nothing on bandwidth-bound ops and risks
+  blowing strict tolerance.
+- Vectorized loads (e.g. load 4 or 8 bf16 elements per thread via int4 / int8
+  loads) to saturate memory bandwidth.
+- Number of warps and number of stages.
+
+Good luck.
+
+## Eager reference implementation
+
+```python
+"""Eager PyTorch reference for the SwiGLU elementwise op.
+
+out = silu(x) * y, where silu(x) = x * sigmoid(x) = x / (1 + exp(-x)).
+"""
+import torch
+
+
+def run(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    return torch.nn.functional.silu(x) * y
+```
+
+## Candidate kernels
+
+### KERNEL_A
+
+```python
+
+import triton
+import triton.language as tl
+
+from torch._inductor.runtime import triton_helpers, triton_heuristics
+from torch._inductor.runtime.triton_helpers import libdevice, math as tl_math
+from torch._inductor.runtime.hints import AutotuneHint, ReductionHint, TileHint, DeviceProperties
+triton_helpers.set_driver_to_gpu()
+
+@triton_heuristics.pointwise(
+    size_hints={'x': 33554432}, 
+    filename=__file__,
+    triton_meta={'signature': {'in_out_ptr0': '*bf16', 'in_ptr0': '*bf16', 'xnumel': 'i32', 'XBLOCK': 'constexpr'}, 'device': DeviceProperties(type='cuda', index=0, multi_processor_count=48, cc=121, major=12, regs_per_multiprocessor=65536, max_threads_per_multi_processor=1536, max_threads_per_block=1024, warp_size=32), 'constants': {}, 'native_matmul': False, 'enable_fp_fusion': True, 'launch_pdl': False, 'disable_ftz': False, 'configs': [{(0,): [['tt.divisibility', 16]], (1,): [['tt.divisibility', 16]], (2,): [['tt.divisibility', 16]]}]},
+    inductor_meta={'grid_type': 'Grid1D', 'autotune_hints': set(), 'kernel_name': 'triton_poi_fused__unsafe_view_mul_silu_6', 'mutated_arg_names': ['in_out_ptr0'], 'optimize_mem': True, 'no_x_dim': False, 'atomic_add_found': False, 'num_load': 2, 'num_store': 1, 'num_reduction': 0, 'backend_hash': 'F26D6A7434BEBEE3558734F2AEA99A4FDF9682E2121B0D40DD978F26BD1DF547', 'assert_indirect_indexing': True, 'autotune_local_cache': True, 'autotune_pointwise': True, 'autotune_remote_cache': None, 'force_disable_caches': False, 'dynamic_scale_rblock': True, 'max_autotune': False, 'max_autotune_pointwise': False, 'min_split_scan_rblock': 256, 'spill_threshold': 16, 'store_cubin': False, 'deterministic': False, 'force_filter_reduction_configs': False, 'mix_order_reduction_allow_multi_stages': False, 'are_deterministic_algorithms_enabled': False, 'tiling_scores': {'x': 201326592}},
+    min_elem_per_thread=0
+)
+@triton.jit
+def triton_poi_fused__unsafe_view_mul_silu_6(in_out_ptr0, in_ptr0, xnumel, XBLOCK : tl.constexpr):
+    xnumel = 25165824
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)[:]
+    xmask = tl.full([XBLOCK], True, tl.int1)[:]
+    x0 = xindex
+    tmp0 = tl.load(in_out_ptr0 + (x0), None).to(tl.float32)
+    tmp8 = tl.load(in_ptr0 + (x0), None).to(tl.float32)
+    tmp1 = tmp0.to(tl.float32)
+    tmp2 = -tmp1
+    tmp3 = libdevice.exp(tmp2)
+    tmp4 = tl.full([1], 1.0, tl.float32)
+    tmp5 = tmp3 + tmp4
+    tmp6 = (tmp1 / tmp5)
+    tmp7 = tmp6.to(tl.float32)
+    tmp9 = tmp7 * tmp8
+    tl.store(in_out_ptr0 + (x0), tmp9, None)
+```
+
+### KERNEL_B
+
+```python
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def swiglu_kernel(x_ptr, y_ptr, out_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
+    pid = tl.program_id(axis=0)
+    block_start = pid * BLOCK_SIZE
+    offsets = block_start + tl.arange(0, BLOCK_SIZE)
+
+    x = tl.load(x_ptr + offsets, eviction_policy='evict_first').to(tl.float32)
+    y = tl.load(y_ptr + offsets, eviction_policy='evict_first').to(tl.float32)
+
+    # silu(x) = x * sigmoid(x)
+    silu_x = x * tl.sigmoid(x)
+    out = silu_x * y
+
+    tl.store(out_ptr + offsets, out.to(tl.bfloat16), eviction_policy='evict_first')
+
+
+def run(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    assert x.is_cuda and y.is_cuda
+    assert x.dtype == torch.bfloat16 and y.dtype == torch.bfloat16
+    assert x.shape == y.shape
+
+    n_elements = x.numel()
+    out = torch.empty_like(x)
+
+    BLOCK_SIZE = 256
+    grid = (n_elements // BLOCK_SIZE,)
+    swiglu_kernel[grid](
+        x, y, out, n_elements,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=8,
+        num_stages=1,
+    )
+    return out
+```
+
+### KERNEL_C
+
+```python
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def _swiglu_kernel(
+    X_ptr, Y_ptr, OUT_ptr,
+    XBLOCK: tl.constexpr,
+):
+    xoffset = tl.program_id(0) * XBLOCK
+    xindex = xoffset + tl.arange(0, XBLOCK)
+    x = tl.load(X_ptr + xindex).to(tl.float32)
+    y = tl.load(Y_ptr + xindex).to(tl.float32)
+    neg = -x
+    e = tl.math.exp(neg)
+    s = x / (e + 1.0)
+    out = s * y
+    tl.store(OUT_ptr + xindex, out.to(OUT_ptr.dtype.element_ty))
+
+
+_XBLOCK = 512
+_NW = 8
+_NS = 1
+
+_OUT = None
+_GRID = None
+_LAUNCH = None
+
+
+def _build_launcher(x, y, out, grid_x):
+    """Pre-warm the kernel and try to capture a fast launch path."""
+    _swiglu_kernel[(grid_x,)](x, y, out, XBLOCK=_XBLOCK,
+                              num_warps=_NW, num_stages=_NS)
+
+    # Return a lambda that does the minimum possible Python work per call.
+    grid = (grid_x,)
+
+    def launch(xv, yv, ov):
+        _swiglu_kernel[grid](xv, yv, ov, XBLOCK=_XBLOCK,
+                             num_warps=_NW, num_stages=_NS)
+    return launch
+
+
+def run(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    global _OUT, _GRID, _LAUNCH
+    if _OUT is None or _OUT.shape != x.shape or _OUT.dtype != x.dtype:
+        _OUT = torch.empty_like(x)
+        grid_x = x.numel() // _XBLOCK
+        _LAUNCH = _build_launcher(x, y, _OUT, grid_x)
+    _LAUNCH(x, y, _OUT)
+    return _OUT
+```
+
+### KERNEL_D
+
+```python
+import torch
+import triton
+import triton.language as tl
+
+
+_BLOCK = 64
+_GRID = (1 * 512 * 6144 // _BLOCK,)
+
+
+@triton.jit
+def _swiglu_kernel(x_ptr, y_ptr, out_ptr, BLOCK: tl.constexpr):
+    offsets = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
+    x = tl.load(x_ptr + offsets, eviction_policy="evict_first").to(tl.float32)
+    y = tl.load(y_ptr + offsets, eviction_policy="evict_first").to(tl.float32)
+    out = x * tl.sigmoid(x) * y
+    tl.store(out_ptr + offsets, out, eviction_policy="evict_last")
+
+
+def run(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    out = torch.empty_like(x)
+    _swiglu_kernel[_GRID](x, y, out, BLOCK=_BLOCK, num_warps=4, num_stages=1)
+    return out
+```
+
+## Your task
+
+**Rubric (1-5 scale, where 1=poor, 5=excellent):**
+1. **Correctness reasoning** -- does the code make it easy to convince yourself the math is right? Are there obvious tolerance hazards (e.g. bf16 intermediate where fp32 is needed, missing fp32 promotion of accumulators)?
+2. **Performance reasoning** -- block sizing, load coalescing, register pressure, choice of fusion boundaries. Can you predict if it's fast just from reading?
+3. **Readability** -- variable naming, structure, comments where they earn their keep.
+4. **Code length** -- right-sized for the job, or under/over-engineered?
+5. **Risk** -- would you ship this to production? What's the failure mode you'd worry about?
+
+For each of KERNEL_A, KERNEL_B, KERNEL_C, KERNEL_D, give a score on each of the 5 rubric dimensions plus a 2-4 sentence rationale.
+
+Then answer one **forced-rank** question:
+> If you had to ship exactly ONE of A/B/C/D to production, which would it be, and why? Limit yourself to ~4 sentences.
+
+Format your response as markdown with sections `## KERNEL_A`, `## KERNEL_B`, `## KERNEL_C`, `## KERNEL_D`, then `## Forced rank: ship one`.
+Under each kernel, present the 5 rubric scores as a small markdown table (dimension | score | one-line note).

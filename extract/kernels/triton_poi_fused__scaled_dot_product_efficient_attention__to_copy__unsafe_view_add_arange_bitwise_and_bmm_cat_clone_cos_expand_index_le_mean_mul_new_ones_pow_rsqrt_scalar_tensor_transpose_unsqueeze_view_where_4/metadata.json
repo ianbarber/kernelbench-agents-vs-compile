@@ -1,0 +1,72 @@
+{
+  "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+  "found_in": [
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_4",
+      "kind": "triton",
+      "total_us": 164874.75400000013,
+      "pct_total": 9.23642713005082,
+      "invocations": 140,
+      "mean_us": 1177.6768142857152,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            512
+          ],
+          [
+            1,
+            1,
+            512,
+            512
+          ],
+          [
+            1,
+            1,
+            512,
+            512
+          ],
+          []
+        ],
+        "Input Strides": [
+          [
+            512,
+            1
+          ],
+          [
+            262144,
+            0,
+            512,
+            1
+          ],
+          [
+            262144,
+            0,
+            512,
+            1
+          ],
+          []
+        ],
+        "Input type": [
+          "long int",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/sp/cspxqfc45hkroojpzggeqw3arw5erflxjatmrfg55mtkuzpnplbm.py",
+        "kernel_hash": "cspxqfc45hkroojpzggeqw3arw5erflxjatmrfg55mtkuzpnplbm",
+        "num_warps": 8,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=512"
+      }
+    }
+  }
+}

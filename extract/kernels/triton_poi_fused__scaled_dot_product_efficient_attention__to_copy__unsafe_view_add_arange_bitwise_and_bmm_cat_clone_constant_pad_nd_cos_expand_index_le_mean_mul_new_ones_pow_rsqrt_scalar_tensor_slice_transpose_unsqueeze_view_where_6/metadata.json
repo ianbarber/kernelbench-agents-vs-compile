@@ -1,0 +1,70 @@
+{
+  "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+  "found_in": [
+    "decode_ctx2048_b1::model__1_inference_1.1",
+    "decode_ctx2048_b8::model__3_inference_3.3",
+    "decode_ctx512_b1::model__5_inference_5.5",
+    "decode_ctx512_b8::model__7_inference_7.7"
+  ],
+  "stats": {
+    "decode_ctx512_b1": {
+      "name": "triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_constant_pad_nd_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_slice_transpose_unsqueeze_view_where_6",
+      "kind": "triton",
+      "total_us": 14415.544000000004,
+      "pct_total": 7.658342135357407,
+      "invocations": 140,
+      "mean_us": 102.96817142857145,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            513
+          ],
+          [
+            1,
+            1,
+            1,
+            513
+          ],
+          [
+            1,
+            1,
+            1,
+            513
+          ],
+          []
+        ],
+        "Input Strides": [
+          [
+            513,
+            1
+          ],
+          [
+            520,
+            0,
+            520,
+            1
+          ],
+          [
+            520,
+            0,
+            520,
+            1
+          ],
+          []
+        ],
+        "Input type": [
+          "long int",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/db/cdbwnl6rqkmwo5qxyrqvrjhoibuilc4rmxeiirpdiwbbxkmx6yuh.py",
+        "kernel_hash": "cdbwnl6rqkmwo5qxyrqvrjhoibuilc4rmxeiirpdiwbbxkmx6yuh",
+        "num_warps": 4,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=128"
+      }
+    }
+  }
+}

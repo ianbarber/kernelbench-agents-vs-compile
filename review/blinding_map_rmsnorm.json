@@ -1,0 +1,9 @@
+{
+  "task": "rmsnorm",
+  "label_to_author": {
+    "A": "kimi",
+    "B": "codex",
+    "C": "claude",
+    "D": "inductor"
+  }
+}

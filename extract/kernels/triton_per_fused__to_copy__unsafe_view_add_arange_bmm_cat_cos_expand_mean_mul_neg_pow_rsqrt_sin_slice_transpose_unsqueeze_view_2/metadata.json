@@ -1,0 +1,143 @@
+{
+  "name": "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+  "found_in": [
+    "decode_ctx2048_b1::model__1_inference_1.1",
+    "decode_ctx2048_b1::model__0_inference_0.0",
+    "decode_ctx2048_b8::model__3_inference_3.3",
+    "decode_ctx2048_b8::model__2_inference_2.2",
+    "decode_ctx512_b1::model__5_inference_5.5",
+    "decode_ctx512_b1::model__4_inference_4.4",
+    "decode_ctx512_b8::model__6_inference_6.6",
+    "decode_ctx512_b8::model__7_inference_7.7",
+    "prefill_2048_b1::model__8_inference_8.8",
+    "prefill_512_b1::model__9_inference_9.9"
+  ],
+  "stats": {
+    "prefill_512_b1": {
+      "name": "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "kind": "triton",
+      "total_us": 96094.11600000001,
+      "pct_total": 5.3832759626780105,
+      "invocations": 280,
+      "mean_us": 343.19327142857145,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            8,
+            512,
+            128
+          ],
+          [
+            512,
+            1024
+          ],
+          [
+            128
+          ],
+          [
+            64
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            524288,
+            128,
+            1024,
+            1
+          ],
+          [
+            1024,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "float",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/6u/c6udxaztk6jrfn7xet6ju5rk4ilw77x7egdkt47mnie4jiwsvp6a.py",
+        "kernel_hash": "c6udxaztk6jrfn7xet6ju5rk4ilw77x7egdkt47mnie4jiwsvp6a",
+        "num_warps": 2,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=1"
+      }
+    },
+    "decode_ctx512_b1": {
+      "name": "triton_per_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mul_neg_pow_rsqrt_sin_slice_transpose_unsqueeze_view_2",
+      "kind": "triton",
+      "total_us": 1563.161000000001,
+      "pct_total": 0.8304384316434693,
+      "invocations": 280,
+      "mean_us": 5.58271785714286,
+      "sample_inputs": {
+        "Input Dims": [
+          [
+            1,
+            1024
+          ],
+          [
+            128
+          ],
+          [
+            64
+          ],
+          [
+            1,
+            8,
+            1,
+            128
+          ],
+          [],
+          []
+        ],
+        "Input Strides": [
+          [
+            1024,
+            1
+          ],
+          [
+            1
+          ],
+          [
+            1
+          ],
+          [
+            525312,
+            65664,
+            128,
+            1
+          ],
+          [],
+          []
+        ],
+        "Input type": [
+          "c10::BFloat16",
+          "c10::BFloat16",
+          "float",
+          "c10::BFloat16",
+          "Scalar",
+          "Scalar"
+        ],
+        "kernel_file": "/tmp/torchinductor_ianbarber/k2/ck27fi4g4pjiwftb3uy5cntmnhtv7yw3wzww6se3n25u3o2fdzlp.py",
+        "kernel_hash": "ck27fi4g4pjiwftb3uy5cntmnhtv7yw3wzww6se3n25u3o2fdzlp",
+        "num_warps": 2,
+        "num_stages": 1,
+        "kernel_kwargs": "XBLOCK=1"
+      }
+    }
+  }
+}

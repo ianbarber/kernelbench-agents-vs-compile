@@ -1,0 +1,27 @@
+{
+  "correctness": {
+    "pass": true,
+    "cos_sim": 0.9984824870855509,
+    "l1_rel": 0.04411628842353821,
+    "rmse": 0.03524008020758629,
+    "reasons": []
+  },
+  "correctness_strict": {
+    "pass": false,
+    "cos_sim": 0.9984824870855509,
+    "l1_rel": 0.04411628842353821,
+    "rmse": 0.03524008020758629,
+    "reasons": [
+      "l1_rel 0.0441 > 0.01",
+      "rmse 0.0352 > 0.01"
+    ]
+  },
+  "mutates_x": false,
+  "mutates_y": true,
+  "deterministic": null,
+  "candidate_us": null,
+  "reference_us": null,
+  "inductor_baseline_us": 361.3154750000003,
+  "speedup_vs_inductor": null,
+  "verdict": "FAIL_MUTATION"
+}

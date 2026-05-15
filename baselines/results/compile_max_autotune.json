@@ -1,0 +1,110 @@
+{
+  "decode_ctx2048_b1": {
+    "compile_time_s": 4.021774768829346,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.999985611308883,
+      "l1_rel": 0.007517201825976372,
+      "rmse": 0.04339221492409706,
+      "reasons": []
+    },
+    "median_ms": 26.485248565673828,
+    "p10_ms": 26.442880630493164,
+    "p90_ms": 26.50150489807129,
+    "peak_mem_bytes": 4184214528,
+    "tokens_per_sec": 37.756866714705815,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 2048
+  },
+  "decode_ctx2048_b8": {
+    "compile_time_s": 6.953812837600708,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999394052196894,
+      "l1_rel": 0.009083272889256477,
+      "rmse": 0.048584043979644775,
+      "reasons": []
+    },
+    "median_ms": 218.33526611328125,
+    "p10_ms": 218.33526611328125,
+    "p90_ms": 218.33526611328125,
+    "peak_mem_bytes": 9281851904,
+    "tokens_per_sec": 36.6408970131709,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 2048
+  },
+  "decode_ctx512_b1": {
+    "compile_time_s": 9.118336200714111,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999414659240808,
+      "l1_rel": 0.017911499366164207,
+      "rmse": 0.08542745560407639,
+      "reasons": []
+    },
+    "median_ms": 17.336048126220703,
+    "p10_ms": 17.329504013061523,
+    "p90_ms": 17.79542350769043,
+    "peak_mem_bytes": 3830746112,
+    "tokens_per_sec": 57.68327318424457,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 512
+  },
+  "decode_ctx512_b8": {
+    "compile_time_s": 7.601863622665405,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999778020042185,
+      "l1_rel": 0.005049050319939852,
+      "rmse": 0.033158618956804276,
+      "reasons": []
+    },
+    "median_ms": 149.70176696777344,
+    "p10_ms": 149.70176696777344,
+    "p90_ms": 149.70176696777344,
+    "peak_mem_bytes": 4927918592,
+    "tokens_per_sec": 53.439582992511866,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 512
+  },
+  "prefill_2048_b1": {
+    "compile_time_s": 8.290990114212036,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999706856453636,
+      "l1_rel": 0.005679072346538305,
+      "rmse": 0.03915931284427643,
+      "reasons": []
+    },
+    "median_ms": 866.5614013671875,
+    "p10_ms": 866.5614013671875,
+    "p90_ms": 866.5614013671875,
+    "peak_mem_bytes": 4106520576,
+    "tokens_per_sec": 2363.3639771732715,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 2048
+  },
+  "prefill_512_b1": {
+    "compile_time_s": 8.252706527709961,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999626895700956,
+      "l1_rel": 0.006293657701462507,
+      "rmse": 0.046201903373003006,
+      "reasons": []
+    },
+    "median_ms": 243.07839965820312,
+    "p10_ms": 243.07839965820312,
+    "p90_ms": 243.07839965820312,
+    "peak_mem_bytes": 3710134272,
+    "tokens_per_sec": 2106.316319014492,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 512
+  }
+}

@@ -1,0 +1,290 @@
+{
+  "swiglu/claude": {
+    "task": "swiglu",
+    "author": "claude",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_claude_strict/candidate.py",
+    "loc": 40,
+    "bytes": 1359,
+    "raw_lines": 52,
+    "cc": {
+      "total": 6,
+      "max": 4,
+      "n_blocks": 3
+    },
+    "mi": 59.07218604830183,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 2,
+      "tl_store": 1,
+      "tl_where": 0,
+      "tl_sum": 0,
+      "tl_dot": 0
+    },
+    "candidate_us": 118.78400295972824,
+    "speedup_vs_inductor": 0.9225147938241423
+  },
+  "swiglu/codex": {
+    "task": "swiglu",
+    "author": "codex",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_codex_strict/candidate.py",
+    "loc": 16,
+    "bytes": 686,
+    "raw_lines": 22,
+    "cc": {
+      "total": 2,
+      "max": 1,
+      "n_blocks": 2
+    },
+    "mi": 58.75589476459401,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 2,
+      "tl_store": 1,
+      "tl_where": 0,
+      "tl_sum": 0,
+      "tl_dot": 0
+    },
+    "candidate_us": 105.47199845314026,
+    "speedup_vs_inductor": 1.0389487409654503
+  },
+  "swiglu/kimi": {
+    "task": "swiglu",
+    "author": "kimi",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_kimi_strict/candidate.py",
+    "loc": 28,
+    "bytes": 1061,
+    "raw_lines": 38,
+    "cc": {
+      "total": 5,
+      "max": 4,
+      "n_blocks": 2
+    },
+    "mi": 65.10665699554755,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 2,
+      "tl_store": 1,
+      "tl_where": 0,
+      "tl_sum": 0,
+      "tl_dot": 0
+    },
+    "candidate_us": 103.42399775981903,
+    "speedup_vs_inductor": 1.059521990771204
+  },
+  "swiglu/inductor": {
+    "task": "swiglu",
+    "author": "inductor",
+    "path": "/home/ianbarber/Projects/KernelBench/extract/kernels/triton_poi_fused__unsafe_view_mul_silu_6/kernel.py",
+    "loc": 31,
+    "bytes": 2533,
+    "raw_lines": 34,
+    "cc": {
+      "total": 1,
+      "max": 1,
+      "n_blocks": 1
+    },
+    "mi": 54.10817416467631,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 2,
+      "tl_store": 1,
+      "tl_where": 0,
+      "tl_sum": 0,
+      "tl_dot": 0
+    },
+    "candidate_us": 109.58,
+    "speedup_vs_inductor": 1.0
+  },
+  "rmsnorm/claude": {
+    "task": "rmsnorm",
+    "author": "claude",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/rmsnorm_claude_v1/candidate.py",
+    "loc": 57,
+    "bytes": 1986,
+    "raw_lines": 63,
+    "cc": {
+      "total": 4,
+      "max": 3,
+      "n_blocks": 2
+    },
+    "mi": 44.95363366827698,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 5,
+      "tl_store": 1,
+      "tl_where": 1,
+      "tl_sum": 1,
+      "tl_dot": 0
+    },
+    "candidate_us": 29.69600073993206,
+    "speedup_vs_inductor": 1.2068965216520262
+  },
+  "rmsnorm/codex": {
+    "task": "rmsnorm",
+    "author": "codex",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/rmsnorm_codex_v1/candidate.py",
+    "loc": 42,
+    "bytes": 1169,
+    "raw_lines": 49,
+    "cc": {
+      "total": 2,
+      "max": 1,
+      "n_blocks": 2
+    },
+    "mi": 54.264776325780105,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 3,
+      "tl_store": 1,
+      "tl_where": 0,
+      "tl_sum": 1,
+      "tl_dot": 0
+    },
+    "candidate_us": 31.71199932694435,
+    "speedup_vs_inductor": 1.1301715678818227
+  },
+  "rmsnorm/kimi": {
+    "task": "rmsnorm",
+    "author": "kimi",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/rmsnorm_kimi_v1/candidate.py",
+    "loc": 109,
+    "bytes": 3366,
+    "raw_lines": 124,
+    "cc": {
+      "total": 4,
+      "max": 3,
+      "n_blocks": 2
+    },
+    "mi": 57.72775393528164,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 5,
+      "tl_store": 1,
+      "tl_where": 1,
+      "tl_sum": 1,
+      "tl_dot": 0
+    },
+    "candidate_us": 36.86400130391121,
+    "speedup_vs_inductor": 0.972222187833892
+  },
+  "rmsnorm/inductor": {
+    "task": "rmsnorm",
+    "author": "inductor",
+    "path": "/home/ianbarber/Projects/KernelBench/extract/kernels/triton_red_fused__to_copy__unsafe_view_add_mean_mul_pow_rsqrt_9/kernel.py",
+    "loc": 61,
+    "bytes": 4326,
+    "raw_lines": 64,
+    "cc": {
+      "total": 3,
+      "max": 3,
+      "n_blocks": 1
+    },
+    "mi": 41.80622266181303,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 5,
+      "tl_store": 1,
+      "tl_where": 1,
+      "tl_sum": 1,
+      "tl_dot": 0
+    },
+    "candidate_us": 35.84,
+    "speedup_vs_inductor": 1.0
+  },
+  "sdpa_prelude/claude": {
+    "task": "sdpa_prelude",
+    "author": "claude",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/sdpa_prelude_claude_v1/candidate.py",
+    "loc": 192,
+    "bytes": 8493,
+    "raw_lines": 248,
+    "cc": {
+      "total": 7,
+      "max": 2,
+      "n_blocks": 5
+    },
+    "mi": 49.680292568009314,
+    "ops": {
+      "triton_jit_fns": 4,
+      "tl_load": 14,
+      "tl_store": 6,
+      "tl_where": 1,
+      "tl_sum": 4,
+      "tl_dot": 0
+    },
+    "candidate_us": 1513.4719610214233,
+    "speedup_vs_inductor": 2.6731449965347145
+  },
+  "sdpa_prelude/codex": {
+    "task": "sdpa_prelude",
+    "author": "codex",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/sdpa_prelude_codex_v1/candidate.py",
+    "loc": 117,
+    "bytes": 4558,
+    "raw_lines": 145,
+    "cc": {
+      "total": 4,
+      "max": 1,
+      "n_blocks": 4
+    },
+    "mi": 42.95492139611753,
+    "ops": {
+      "triton_jit_fns": 3,
+      "tl_load": 14,
+      "tl_store": 6,
+      "tl_where": 5,
+      "tl_sum": 2,
+      "tl_dot": 0
+    },
+    "candidate_us": 1515.5199766159058,
+    "speedup_vs_inductor": 2.669532610869274
+  },
+  "sdpa_prelude/kimi": {
+    "task": "sdpa_prelude",
+    "author": "kimi",
+    "path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/sdpa_prelude_kimi_v1/candidate.py",
+    "loc": 266,
+    "bytes": 8484,
+    "raw_lines": 316,
+    "cc": {
+      "total": 5,
+      "max": 1,
+      "n_blocks": 5
+    },
+    "mi": 44.10075897965014,
+    "ops": {
+      "triton_jit_fns": 4,
+      "tl_load": 18,
+      "tl_store": 6,
+      "tl_where": 1,
+      "tl_sum": 4,
+      "tl_dot": 0
+    },
+    "candidate_us": 1034.2400074005127,
+    "speedup_vs_inductor": 3.9117902721329156
+  },
+  "sdpa_prelude/inductor": {
+    "task": "sdpa_prelude",
+    "author": "inductor",
+    "path": "/home/ianbarber/Projects/KernelBench/extract/kernels/triton_poi_fused__scaled_dot_product_efficient_attention__to_copy__unsafe_view_add_arange_bitwise_and_bmm_cat_clone_cos_expand_index_le_mean_mul_new_ones_pow_rsqrt_scalar_tensor_transpose_unsqueeze_view_where_3/kernel.py",
+    "loc": 26,
+    "bytes": 2728,
+    "raw_lines": 29,
+    "cc": {
+      "total": 1,
+      "max": 1,
+      "n_blocks": 1
+    },
+    "mi": 53.28330827187329,
+    "ops": {
+      "triton_jit_fns": 1,
+      "tl_load": 1,
+      "tl_store": 1,
+      "tl_where": 0,
+      "tl_sum": 0,
+      "tl_dot": 0
+    },
+    "candidate_us": 4045.73,
+    "speedup_vs_inductor": 1.0
+  }
+}

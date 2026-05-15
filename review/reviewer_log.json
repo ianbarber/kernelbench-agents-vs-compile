@@ -1,0 +1,32 @@
+[
+  {
+    "task": "swiglu",
+    "label_to_author": {
+      "A": "inductor",
+      "B": "kimi",
+      "C": "claude",
+      "D": "codex"
+    },
+    "response_chars": 3924
+  },
+  {
+    "task": "rmsnorm",
+    "label_to_author": {
+      "A": "kimi",
+      "B": "codex",
+      "C": "claude",
+      "D": "inductor"
+    },
+    "response_chars": 4359
+  },
+  {
+    "task": "sdpa_prelude",
+    "label_to_author": {
+      "A": "kimi",
+      "B": "claude",
+      "C": "codex",
+      "D": "inductor"
+    },
+    "response_chars": 5550
+  }
+]

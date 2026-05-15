@@ -1,0 +1,360 @@
+{
+  "note": "These ops were dispatched by inductor to cuBLAS/cuDNN/SDPA backends (NOT codegen'd by inductor itself). They are not candidates for agent replacement.",
+  "ops": {
+    "aten::mm": {
+      "prefill_512_b1": {
+        "total_us": 876097.8659999984,
+        "pct_total": 49.07976449870553,
+        "invocations": 1970,
+        "mean_us": 444.71972893400937,
+        "sample_inputs": {
+          "Input Dims": [
+            [
+              512,
+              2048
+            ],
+            [
+              2048,
+              2048
+            ],
+            [
+              512,
+              2048
+            ]
+          ],
+          "Input Strides": [
+            [
+              2048,
+              1
+            ],
+            [
+              1,
+              2048
+            ],
+            [
+              2048,
+              1
+            ]
+          ],
+          "Input type": [
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "c10::BFloat16"
+          ]
+        }
+      },
+      "decode_ctx512_b1": {
+        "total_us": 52816.93599999998,
+        "pct_total": 28.0593064284827,
+        "invocations": 1970,
+        "mean_us": 26.810627411167502,
+        "sample_inputs": {
+          "Input Dims": [
+            [
+              1,
+              2048
+            ],
+            [
+              2048,
+              2048
+            ],
+            [
+              1,
+              2048
+            ]
+          ],
+          "Input Strides": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2048
+            ],
+            [
+              2048,
+              1
+            ]
+          ],
+          "Input type": [
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "c10::BFloat16"
+          ]
+        }
+      }
+    },
+    "aten::_efficient_attention_forward": {
+      "prefill_512_b1": {
+        "total_us": 6604.281999999999,
+        "pct_total": 0.3699776221610389,
+        "invocations": 280,
+        "mean_us": 23.586721428571426,
+        "sample_inputs": {
+          "Input Dims": [
+            [
+              1,
+              512,
+              16,
+              128
+            ],
+            [
+              1,
+              512,
+              16,
+              128
+            ],
+            [
+              1,
+              512,
+              16,
+              128
+            ],
+            [
+              1,
+              16,
+              512,
+              512
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "Input Strides": [
+            [
+              1048576,
+              2048,
+              128,
+              1
+            ],
+            [
+              1048576,
+              128,
+              65536,
+              1
+            ],
+            [
+              1048576,
+              128,
+              65536,
+              1
+            ],
+            [
+              262144,
+              0,
+              512,
+              1
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "Input type": [
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "",
+            "",
+            "",
+            "",
+            "Scalar",
+            "Scalar",
+            "Scalar",
+            "Scalar",
+            "",
+            ""
+          ]
+        }
+      },
+      "decode_ctx512_b1": {
+        "total_us": 26566.674999999992,
+        "pct_total": 14.113701609099602,
+        "invocations": 280,
+        "mean_us": 94.88098214285712,
+        "sample_inputs": {
+          "Input Dims": [
+            [
+              1,
+              1,
+              16,
+              128
+            ],
+            [
+              1,
+              513,
+              16,
+              128
+            ],
+            [
+              1,
+              513,
+              16,
+              128
+            ],
+            [
+              1,
+              16,
+              1,
+              513
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "Input Strides": [
+            [
+              2048,
+              128,
+              128,
+              1
+            ],
+            [
+              1050624,
+              128,
+              65664,
+              1
+            ],
+            [
+              1050624,
+              128,
+              65664,
+              1
+            ],
+            [
+              520,
+              0,
+              520,
+              1
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ],
+          "Input type": [
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "",
+            "",
+            "",
+            "",
+            "Scalar",
+            "Scalar",
+            "Scalar",
+            "Scalar",
+            "",
+            ""
+          ]
+        }
+      }
+    },
+    "aten::clone": {
+      "decode_ctx512_b1": {
+        "total_us": 16717.38299999999,
+        "pct_total": 8.881207578556003,
+        "invocations": 560,
+        "mean_us": 29.852469642857127,
+        "sample_inputs": {
+          "Input Dims": [
+            [
+              1,
+              8,
+              512,
+              128
+            ],
+            []
+          ],
+          "Input Strides": [
+            [
+              524288,
+              128,
+              1024,
+              1
+            ],
+            []
+          ],
+          "Input type": [
+            "c10::BFloat16",
+            ""
+          ]
+        }
+      }
+    },
+    "aten::copy_": {
+      "decode_ctx512_b1": {
+        "total_us": 15588.412999999993,
+        "pct_total": 8.281435657319147,
+        "invocations": 560,
+        "mean_us": 27.836451785714274,
+        "sample_inputs": {
+          "Input Dims": [
+            [
+              1,
+              8,
+              512,
+              128
+            ],
+            [
+              1,
+              8,
+              512,
+              128
+            ],
+            []
+          ],
+          "Input Strides": [
+            [
+              524288,
+              128,
+              1024,
+              1
+            ],
+            [
+              524288,
+              128,
+              1024,
+              1
+            ],
+            []
+          ],
+          "Input type": [
+            "c10::BFloat16",
+            "c10::BFloat16",
+            "Scalar"
+          ]
+        }
+      }
+    }
+  }
+}

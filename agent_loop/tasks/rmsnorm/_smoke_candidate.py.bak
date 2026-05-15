@@ -1,0 +1,17 @@
+"""Smoke candidate -- trivial eager PyTorch impl of residual-fused RMSNorm.
+
+This is NOT calling reference.run; it independently implements the same
+math in fp32 so the harness can validate end-to-end.
+
+This file is for harness smoke-testing only. Delete or replace before
+running real agent attempts.
+"""
+import torch
+
+
+def run(x, residual, weight, eps: float = 1e-6):
+    s = x.to(torch.float32) + residual.to(torch.float32)
+    var = s.pow(2).mean(dim=-1, keepdim=True)
+    inv = torch.rsqrt(var + eps)
+    out = s * inv * weight.to(torch.float32)
+    return out.to(x.dtype)

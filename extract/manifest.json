@@ -1,0 +1,399 @@
+{
+  "torch_version": "2.12.0.dev20260408+cu128",
+  "cuda": "NVIDIA GB10",
+  "inductor_debug_dir": "inductor_debug/debug",
+  "cache_dir": "inductor_debug/cache",
+  "per_workload_dir": "inductor_debug/by_workload",
+  "workloads": {
+    "decode_ctx2048_b1": {
+      "name": "decode_ctx2048_b1",
+      "mode": "decode",
+      "seq_len": 2048,
+      "batch_size": 1,
+      "calls": [
+        {
+          "kind": "cache_build_prefill",
+          "inputs": {
+            "prompt_seq_len": 2048,
+            "batch_size": 1
+          }
+        },
+        {
+          "kind": "decode_step",
+          "inputs": {
+            "last_token_ids": {
+              "shape": [
+                1,
+                1
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            },
+            "attention_mask": {
+              "shape": [
+                1,
+                2049
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            }
+          }
+        }
+      ],
+      "wall_seconds": 60.61558985710144,
+      "debug_files": [
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchdynamo/debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___0_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___1_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/output_code.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/output_code.py",
+        "torch_compile_debug/tlparse/dedicated_log_torch_trace_pw_1bwm5.log"
+      ],
+      "per_workload_dir": "inductor_debug/by_workload/decode_ctx2048_b1",
+      "graphs": [
+        {
+          "graph_id": "model__0_inference_0.0",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0",
+          "output_code": "inductor_debug/by_workload/decode_ctx2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__0_inference_0.0/fx_graph_readable.py",
+          "kernel_files": []
+        },
+        {
+          "graph_id": "model__1_inference_1.1",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1",
+          "output_code": "inductor_debug/by_workload/decode_ctx2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__1_inference_1.1/fx_graph_readable.py",
+          "kernel_files": []
+        }
+      ]
+    },
+    "decode_ctx2048_b8": {
+      "name": "decode_ctx2048_b8",
+      "mode": "decode",
+      "seq_len": 2048,
+      "batch_size": 8,
+      "calls": [
+        {
+          "kind": "cache_build_prefill",
+          "inputs": {
+            "prompt_seq_len": 2048,
+            "batch_size": 8
+          }
+        },
+        {
+          "kind": "decode_step",
+          "inputs": {
+            "last_token_ids": {
+              "shape": [
+                8,
+                1
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            },
+            "attention_mask": {
+              "shape": [
+                8,
+                2049
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            }
+          }
+        }
+      ],
+      "wall_seconds": 64.16985392570496,
+      "debug_files": [
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___2_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___3_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/output_code.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/output_code.py"
+      ],
+      "per_workload_dir": "inductor_debug/by_workload/decode_ctx2048_b8",
+      "graphs": [
+        {
+          "graph_id": "model__2_inference_2.2",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx2048_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2",
+          "output_code": "inductor_debug/by_workload/decode_ctx2048_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx2048_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__2_inference_2.2/fx_graph_readable.py",
+          "kernel_files": []
+        },
+        {
+          "graph_id": "model__3_inference_3.3",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx2048_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3",
+          "output_code": "inductor_debug/by_workload/decode_ctx2048_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx2048_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__3_inference_3.3/fx_graph_readable.py",
+          "kernel_files": []
+        }
+      ]
+    },
+    "decode_ctx512_b1": {
+      "name": "decode_ctx512_b1",
+      "mode": "decode",
+      "seq_len": 512,
+      "batch_size": 1,
+      "calls": [
+        {
+          "kind": "cache_build_prefill",
+          "inputs": {
+            "prompt_seq_len": 512,
+            "batch_size": 1
+          }
+        },
+        {
+          "kind": "decode_step",
+          "inputs": {
+            "last_token_ids": {
+              "shape": [
+                1,
+                1
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            },
+            "attention_mask": {
+              "shape": [
+                1,
+                513
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            }
+          }
+        }
+      ],
+      "wall_seconds": 59.036421060562134,
+      "debug_files": [
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___4_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___5_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/output_code.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/output_code.py"
+      ],
+      "per_workload_dir": "inductor_debug/by_workload/decode_ctx512_b1",
+      "graphs": [
+        {
+          "graph_id": "model__4_inference_4.4",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4",
+          "output_code": "inductor_debug/by_workload/decode_ctx512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__4_inference_4.4/fx_graph_readable.py",
+          "kernel_files": []
+        },
+        {
+          "graph_id": "model__5_inference_5.5",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5",
+          "output_code": "inductor_debug/by_workload/decode_ctx512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__5_inference_5.5/fx_graph_readable.py",
+          "kernel_files": []
+        }
+      ]
+    },
+    "decode_ctx512_b8": {
+      "name": "decode_ctx512_b8",
+      "mode": "decode",
+      "seq_len": 512,
+      "batch_size": 8,
+      "calls": [
+        {
+          "kind": "cache_build_prefill",
+          "inputs": {
+            "prompt_seq_len": 512,
+            "batch_size": 8
+          }
+        },
+        {
+          "kind": "decode_step",
+          "inputs": {
+            "last_token_ids": {
+              "shape": [
+                8,
+                1
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            },
+            "attention_mask": {
+              "shape": [
+                8,
+                513
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            }
+          }
+        }
+      ],
+      "wall_seconds": 62.68105506896973,
+      "debug_files": [
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___6_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___7_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/output_code.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/output_code.py"
+      ],
+      "per_workload_dir": "inductor_debug/by_workload/decode_ctx512_b8",
+      "graphs": [
+        {
+          "graph_id": "model__6_inference_6.6",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx512_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6",
+          "output_code": "inductor_debug/by_workload/decode_ctx512_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx512_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__6_inference_6.6/fx_graph_readable.py",
+          "kernel_files": []
+        },
+        {
+          "graph_id": "model__7_inference_7.7",
+          "graph_dir_rel": "inductor_debug/by_workload/decode_ctx512_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7",
+          "output_code": "inductor_debug/by_workload/decode_ctx512_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/decode_ctx512_b8/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__7_inference_7.7/fx_graph_readable.py",
+          "kernel_files": []
+        }
+      ]
+    },
+    "prefill_2048_b1": {
+      "name": "prefill_2048_b1",
+      "mode": "prefill",
+      "seq_len": 2048,
+      "batch_size": 1,
+      "calls": [
+        {
+          "kind": "prefill",
+          "inputs": {
+            "input_ids": {
+              "shape": [
+                1,
+                2048
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            },
+            "attention_mask": {
+              "shape": [
+                1,
+                2048
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            }
+          }
+        }
+      ],
+      "wall_seconds": 37.288228273391724,
+      "debug_files": [
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___8_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/output_code.py"
+      ],
+      "per_workload_dir": "inductor_debug/by_workload/prefill_2048_b1",
+      "graphs": [
+        {
+          "graph_id": "model__8_inference_8.8",
+          "graph_dir_rel": "inductor_debug/by_workload/prefill_2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8",
+          "output_code": "inductor_debug/by_workload/prefill_2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/prefill_2048_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__8_inference_8.8/fx_graph_readable.py",
+          "kernel_files": []
+        }
+      ]
+    },
+    "prefill_512_b1": {
+      "name": "prefill_512_b1",
+      "mode": "prefill",
+      "seq_len": 512,
+      "batch_size": 1,
+      "calls": [
+        {
+          "kind": "prefill",
+          "inputs": {
+            "input_ids": {
+              "shape": [
+                1,
+                512
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            },
+            "attention_mask": {
+              "shape": [
+                1,
+                512
+              ],
+              "dtype": "torch.int64",
+              "device": "cuda:0"
+            }
+          }
+        }
+      ],
+      "wall_seconds": 36.94440937042236,
+      "debug_files": [
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/aot_model___9_debug.log",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/fx_graph_readable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/fx_graph_runnable.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/fx_graph_transformed.py",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/inductor_provenance_tracking_node_mappings.json",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/ir_post_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/ir_pre_fusion.txt",
+        "torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/output_code.py"
+      ],
+      "per_workload_dir": "inductor_debug/by_workload/prefill_512_b1",
+      "graphs": [
+        {
+          "graph_id": "model__9_inference_9.9",
+          "graph_dir_rel": "inductor_debug/by_workload/prefill_512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9",
+          "output_code": "inductor_debug/by_workload/prefill_512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/output_code.py",
+          "fx_graph_readable": "inductor_debug/by_workload/prefill_512_b1/torch_compile_debug/run_2026_05_14_13_45_52_585634-pid_2791764/torchinductor/model__9_inference_9.9/fx_graph_readable.py",
+          "kernel_files": []
+        }
+      ]
+    }
+  }
+}

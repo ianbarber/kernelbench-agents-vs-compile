@@ -1,0 +1,32 @@
+{
+  "cli": "claude",
+  "task": "swiglu",
+  "run_id": "swiglu_claude_smoke",
+  "wall_clock_s": 108.81476469896734,
+  "mean_gpu_util_pct": 12.952830188679245,
+  "gpu_util_n_samples": 106,
+  "cli_exit_code": 0,
+  "cli_timed_out": false,
+  "harness_exit_code": 0,
+  "harness_result": {
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999958666720676,
+      "l1_rel": 0.0014892624458298087,
+      "rmse": 0.0017213962273672223,
+      "reasons": []
+    },
+    "candidate_us": 116.73600226640701,
+    "reference_us": 141.184002161026,
+    "inductor_baseline_us": 361.3154750000003,
+    "speedup_vs_inductor": 3.0951503219669156,
+    "verdict": "PASS"
+  },
+  "final_candidate_loc": "agent_loop/sandbox/swiglu_claude_smoke/candidate.py",
+  "sandbox_path": "/home/ianbarber/Projects/KernelBench/agent_loop/sandbox/swiglu_claude_smoke",
+  "run_dir": "/home/ianbarber/Projects/KernelBench/agent_loop/runs/swiglu_claude_smoke",
+  "started_at": "2026-05-14T23:26:54.511579+00:00",
+  "ended_at": "2026-05-14T23:28:43.326350+00:00",
+  "tokens": null,
+  "max_attempts": 5
+}

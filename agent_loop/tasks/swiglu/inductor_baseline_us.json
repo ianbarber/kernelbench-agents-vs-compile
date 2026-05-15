@@ -1,0 +1,8 @@
+{
+  "kernel": "triton_poi_fused__unsafe_view_mul_silu_6",
+  "median_us": 109.58399996161461,
+  "note": "Standalone microbench median (do_bench, return_mode='median') on GB10 sm_121, bf16, shape (1,512,6144). This is the codegen-vs-codegen baseline the harness uses for speedup_vs_inductor. The earlier value (361.3 us) was a profiler aggregate -- inflated and not directly comparable. Source: extract/microbench_inductor.json (key 'swiglu_us').",
+  "profiler_aggregate_us": 361.3154750000003,
+  "shape": [1, 512, 6144],
+  "dtype": "bf16"
+}
