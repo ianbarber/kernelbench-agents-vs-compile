@@ -40,9 +40,11 @@ from workload.inputs import get_workload, list_workloads  # noqa: E402
 RESULTS_DIR = ROOT / "baselines" / "results"
 REF_DIR = RESULTS_DIR / "reference_outputs"
 TRACE_DIR = RESULTS_DIR / "traces"
+PINNED_TOKEN_DIR = RESULTS_DIR / "eager_last_token_ids"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 REF_DIR.mkdir(parents=True, exist_ok=True)
 TRACE_DIR.mkdir(parents=True, exist_ok=True)
+PINNED_TOKEN_DIR.mkdir(parents=True, exist_ok=True)
 
 WARMUP = 25
 REP = 100
@@ -77,6 +79,16 @@ def _build_runner(model, workload):
         past = kv_state["past_key_values"]
         last_token_ids = kv_state["last_token_ids"]
         attn = kv_state["attention_mask"]
+
+        # Save the eager-derived last_token_ids so e2e/run_e2e.py can pin it
+        # across configs (so every config decodes from the same starting
+        # token regardless of bf16 prefill drift through patched kernels).
+        try:
+            torch.save(last_token_ids.detach().to("cpu"),
+                       PINNED_TOKEN_DIR / f"{workload['name']}.pt")
+        except Exception as e:  # pragma: no cover - best-effort artifact
+            print(f"[eager] WARN: failed to save pinned last_token_ids "
+                  f"for {workload['name']}: {e}")
 
         # IMPORTANT: a real do_bench loop will call this many times. Each call
         # appends to the cache, which (a) blows up the cache and (b) changes

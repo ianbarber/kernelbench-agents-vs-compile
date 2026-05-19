@@ -1,0 +1,26 @@
+{
+  "decode_ctx2048_b1": {
+    "error": "'NoneType' object has no attribute 'shape'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ianbarber/Projects/KernelBench/e2e/run_e2e.py\", line 335, in _run_config\n    corr = check_outputs(ref, out, dtype=\"bf16\", task=\"standard\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ianbarber/Projects/KernelBench/workload/correctness.py\", line 62, in check_outputs\n    if reference.shape != candidate.shape:\n                          ^^^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'shape'\n"
+  },
+  "decode_ctx2048_b8": {
+    "error": "'NoneType' object has no attribute 'shape'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ianbarber/Projects/KernelBench/e2e/run_e2e.py\", line 335, in _run_config\n    corr = check_outputs(ref, out, dtype=\"bf16\", task=\"standard\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ianbarber/Projects/KernelBench/workload/correctness.py\", line 62, in check_outputs\n    if reference.shape != candidate.shape:\n                          ^^^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'shape'\n"
+  },
+  "decode_ctx512_b1": {
+    "error": "'NoneType' object has no attribute 'shape'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ianbarber/Projects/KernelBench/e2e/run_e2e.py\", line 335, in _run_config\n    corr = check_outputs(ref, out, dtype=\"bf16\", task=\"standard\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ianbarber/Projects/KernelBench/workload/correctness.py\", line 62, in check_outputs\n    if reference.shape != candidate.shape:\n                          ^^^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'shape'\n"
+  },
+  "decode_ctx512_b8": {
+    "error": "'NoneType' object has no attribute 'shape'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ianbarber/Projects/KernelBench/e2e/run_e2e.py\", line 335, in _run_config\n    corr = check_outputs(ref, out, dtype=\"bf16\", task=\"standard\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ianbarber/Projects/KernelBench/workload/correctness.py\", line 62, in check_outputs\n    if reference.shape != candidate.shape:\n                          ^^^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'shape'\n"
+  },
+  "prefill_2048_b1": {
+    "error": "'NoneType' object has no attribute 'shape'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ianbarber/Projects/KernelBench/e2e/run_e2e.py\", line 335, in _run_config\n    corr = check_outputs(ref, out, dtype=\"bf16\", task=\"standard\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ianbarber/Projects/KernelBench/workload/correctness.py\", line 62, in check_outputs\n    if reference.shape != candidate.shape:\n                          ^^^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'shape'\n"
+  },
+  "prefill_512_b1": {
+    "error": "'NoneType' object has no attribute 'shape'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ianbarber/Projects/KernelBench/e2e/run_e2e.py\", line 335, in _run_config\n    corr = check_outputs(ref, out, dtype=\"bf16\", task=\"standard\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ianbarber/Projects/KernelBench/workload/correctness.py\", line 62, in check_outputs\n    if reference.shape != candidate.shape:\n                          ^^^^^^^^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'shape'\n"
+  }
+}

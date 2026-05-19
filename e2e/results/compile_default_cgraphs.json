@@ -1,0 +1,131 @@
+{
+  "decode_ctx2048_b1": {
+    "median_ms": 33.37803077697754,
+    "p10_ms": 33.266815185546875,
+    "p90_ms": 33.266815185546875,
+    "peak_mem_bytes": 4201377280,
+    "tokens_per_sec": 29.959826170744286,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 2048,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.999985714259659,
+      "l1_rel": 0.005462372209876776,
+      "rmse": 0.03386890888214111,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "rmse 0.0339 > 0.01"
+      ]
+    }
+  },
+  "decode_ctx2048_b8": {
+    "median_ms": 221.1288299560547,
+    "p10_ms": 219.38394165039062,
+    "p90_ms": 219.38394165039062,
+    "peak_mem_bytes": 9284282880,
+    "tokens_per_sec": 36.1780053807993,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 2048,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999521666992301,
+      "l1_rel": 0.007989352568984032,
+      "rmse": 0.04331737756729126,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "rmse 0.0433 > 0.01"
+      ]
+    }
+  },
+  "decode_ctx512_b1": {
+    "median_ms": 24.958303451538086,
+    "p10_ms": 25.085952758789062,
+    "p90_ms": 25.223520278930664,
+    "peak_mem_bytes": 3831058432,
+    "tokens_per_sec": 40.06682593397083,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 512,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999337882227525,
+      "l1_rel": 0.017061416059732437,
+      "rmse": 0.0838768258690834,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "l1_rel 0.0171 > 0.01",
+        "rmse 0.0839 > 0.01"
+      ]
+    }
+  },
+  "decode_ctx512_b8": {
+    "median_ms": 148.47500610351562,
+    "p10_ms": 148.42803955078125,
+    "p90_ms": 148.42803955078125,
+    "peak_mem_bytes": 4930349568,
+    "tokens_per_sec": 53.88112255353242,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 512,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999750619810172,
+      "l1_rel": 0.005826304666697979,
+      "rmse": 0.03596818819642067,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "rmse 0.0360 > 0.01"
+      ]
+    }
+  },
+  "prefill_2048_b1": {
+    "median_ms": 874.194580078125,
+    "p10_ms": 875.3917846679688,
+    "p90_ms": 875.3917846679688,
+    "peak_mem_bytes": 5620140032,
+    "tokens_per_sec": 2342.7278625051354,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 2048,
+    "pinned_last_token": false,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 1.0,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  },
+  "prefill_512_b1": {
+    "median_ms": 252.63388061523438,
+    "p10_ms": 254.85084533691406,
+    "p90_ms": 254.85084533691406,
+    "peak_mem_bytes": 4212533248,
+    "tokens_per_sec": 2026.6482023437882,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 512,
+    "pinned_last_token": false,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 1.0,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  }
+}

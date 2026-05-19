@@ -8,15 +8,29 @@ Exit codes:
   2 = candidate fails correctness (FAIL_CORRECTNESS).
   3 = candidate mutates its inputs (FAIL_MUTATION).
   4 = candidate is non-deterministic (FAIL_NONDETERMINISTIC).
+  5 = candidate fails correctness / crashes on a non-canonical shape
+       (FAIL_SHAPE_GENERALIZATION).
   1 = other error (import failure, exception during run, etc.).
 
 Verdict ladder (highest -> lowest):
-  PASS_STRICT  : passes strict tolerance + non-mutating + deterministic.
-  PASS         : passes standard tolerance + non-mutating + deterministic.
+  PASS_STRICT
+  PASS
+  FAIL_SHAPE_GENERALIZATION
   FAIL_MUTATION
   FAIL_NONDETERMINISTIC
   FAIL_CORRECTNESS
   ERROR
+
+The candidate is tested at THREE shapes (the canonical one used for
+benchmarking, plus two additional shapes Qwen3-1.7B exercises end-to-end).
+Benchmark + speedup_vs_inductor only run at the canonical shape. The extra
+shapes exist to catch kernels that hardcode the canonical hidden_size (the
+kimi-v1 rmsnorm hardfaulted at head_dim=128 on a 3090 because of exactly this
+class of bug).
+
+Extra shapes:
+  - (B=8, S=1, hidden=2048)   : decode-step input/post-attn RMSNorm
+  - (B=1, S=512, head_dim=128): q_norm / k_norm per-head normalization
 """
 from __future__ import annotations
 
@@ -78,6 +92,13 @@ DTYPE = torch.bfloat16
 EPS = 1e-6
 SEED = 0xC0FFEE
 
+# Extra shapes the model actually hits end-to-end. Each entry is
+# (label, x_shape, residual_shape, weight_shape).
+EXTRA_SHAPES = [
+    ("decode_b8_s1_h2048", (8, 1, 2048), (8, 1, 2048), (2048,)),
+    ("qk_norm_b1_s512_d128", (1, 512, 128), (1, 512, 128), (128,)),
+]
+
 # Determinism RMSE floor: two runs of the candidate on identical inputs must
 # match to better than this in fp32. Pure-fp32 ops should hit 0.0; the tiny
 # slack covers any innocuous asynchronous reduction nondeterminism.
@@ -93,16 +114,20 @@ def _load_module(name: str, path: Path):
     return mod
 
 
-def _make_inputs():
+def _make_inputs(
+    shape_x=SHAPE_X,
+    shape_residual=SHAPE_RESIDUAL,
+    shape_weight=SHAPE_WEIGHT,
+):
     g = torch.Generator(device="cuda")
     g.manual_seed(SEED)
-    x = torch.randn(SHAPE_X, device="cuda", dtype=DTYPE, generator=g)
-    residual = torch.randn(SHAPE_RESIDUAL, device="cuda", dtype=DTYPE, generator=g)
+    x = torch.randn(shape_x, device="cuda", dtype=DTYPE, generator=g)
+    residual = torch.randn(shape_residual, device="cuda", dtype=DTYPE, generator=g)
     # Weight is a learned scale, conventionally near 1.0. Multiplying randn by
     # a small factor keeps RMSNorm output magnitudes representative of what
     # the model actually sees, and avoids extreme bf16 outputs that would
     # inflate the rmse threshold artificially.
-    weight = (torch.randn(SHAPE_WEIGHT, device="cuda", dtype=torch.float32,
+    weight = (torch.randn(shape_weight, device="cuda", dtype=torch.float32,
                           generator=g) * 0.1 + 1.0).to(DTYPE)
     return x, residual, weight
 
@@ -131,7 +156,59 @@ def _emit(result: dict) -> None:
     print(json.dumps(result, indent=2))
 
 
+def _check_extra_shape(candidate, reference, label, shape_x, shape_residual,
+                       shape_weight):
+    """Run candidate + reference at a non-canonical shape.
+
+    Returns (ok: bool, info: dict). `ok` is True only if the candidate runs to
+    completion AND passes standard correctness against the eager reference.
+    """
+    info = {"shape_x": list(shape_x), "shape_residual": list(shape_residual),
+            "shape_weight": list(shape_weight)}
+    try:
+        x, r, w = _make_inputs(shape_x, shape_residual, shape_weight)
+    except Exception as e:
+        info["error"] = f"input construction failed: {e}"
+        return False, info
+
+    try:
+        ref_out = reference.run(x, r, w, EPS)
+        torch.cuda.synchronize()
+    except Exception:
+        info["error"] = "reference.run raised"
+        info["traceback"] = traceback.format_exc()
+        return False, info
+
+    try:
+        cand_out = candidate.run(x, r, w, EPS)
+        torch.cuda.synchronize()
+    except Exception:
+        info["error"] = "candidate.run raised"
+        info["traceback"] = traceback.format_exc()
+        return False, info
+
+    if not isinstance(cand_out, torch.Tensor):
+        info["error"] = f"candidate.run returned non-tensor ({type(cand_out).__name__})"
+        return False, info
+
+    if cand_out.shape != ref_out.shape:
+        info["error"] = (
+            f"shape mismatch: cand={tuple(cand_out.shape)} "
+            f"ref={tuple(ref_out.shape)}"
+        )
+        return False, info
+
+    corr = check_outputs(ref_out, cand_out, dtype="bf16", task="standard")
+    info["correctness"] = corr
+    return bool(corr["pass"]), info
+
+
 def main() -> int:
+    # Honor --help; everything else runs the full check.
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+
     candidate_path = HERE / "candidate.py"
     reference_path = HERE / "reference.py"
 
@@ -283,7 +360,7 @@ def main() -> int:
         _emit(result)
         return 4
 
-    # === Correctness gate (standard) ===
+    # === Correctness gate (standard, canonical shape) ===
     if not correctness["pass"]:
         result = {
             "correctness": correctness,
@@ -302,7 +379,37 @@ def main() -> int:
         _emit(result)
         return 2
 
-    # === Benchmark ===
+    # === Shape-generalization gate ===
+    # Run candidate + reference at every extra shape. Hard-fault or correctness
+    # failure on ANY shape demotes the verdict to FAIL_SHAPE_GENERALIZATION.
+    extra_shape_results = {}
+    extra_shape_ok = True
+    for label, sx, sr, sw in EXTRA_SHAPES:
+        ok, info = _check_extra_shape(candidate, reference, label, sx, sr, sw)
+        extra_shape_results[label] = {"pass": bool(ok), **info}
+        if not ok:
+            extra_shape_ok = False
+
+    if not extra_shape_ok:
+        result = {
+            "correctness": correctness,
+            "correctness_strict": correctness_strict,
+            "mutates_x": False,
+            "mutates_residual": False,
+            "mutates_weight": False,
+            "deterministic": True,
+            "determinism_rmse": det_rmse,
+            "extra_shapes": extra_shape_results,
+            "candidate_us": None,
+            "reference_us": None,
+            "inductor_baseline_us": INDUCTOR_BASELINE_US,
+            "speedup_vs_inductor": None,
+            "verdict": "FAIL_SHAPE_GENERALIZATION",
+        }
+        _emit(result)
+        return 5
+
+    # === Benchmark (canonical shape only) ===
     import triton.testing
 
     x_b, res_b, w_b = _make_inputs()
@@ -348,6 +455,7 @@ def main() -> int:
         "mutates_weight": False,
         "deterministic": True,
         "determinism_rmse": det_rmse,
+        "extra_shapes": extra_shape_results,
         "candidate_us": cand_us,
         "reference_us": ref_us,
         "inductor_baseline_us": INDUCTOR_BASELINE_US,

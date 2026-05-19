@@ -1,0 +1,122 @@
+{
+  "decode_ctx2048_b1": {
+    "median_ms": 32.902544021606445,
+    "p10_ms": 32.501407623291016,
+    "p90_ms": 32.501407623291016,
+    "peak_mem_bytes": 4218400256,
+    "tokens_per_sec": 30.392786629001087,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 2048,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999999999999999,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  },
+  "decode_ctx2048_b8": {
+    "median_ms": 175.82057189941406,
+    "p10_ms": 175.5234832763672,
+    "p90_ms": 175.5234832763672,
+    "peak_mem_bytes": 7541571072,
+    "tokens_per_sec": 45.500932647271526,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 2048,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999999999999999,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  },
+  "decode_ctx512_b1": {
+    "median_ms": 29.437023162841797,
+    "p10_ms": 29.402111053466797,
+    "p90_ms": 29.477664947509766,
+    "peak_mem_bytes": 3863952896,
+    "tokens_per_sec": 33.97082627778392,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 512,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 1.0,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  },
+  "decode_ctx512_b8": {
+    "median_ms": 143.45706176757812,
+    "p10_ms": 143.53692626953125,
+    "p90_ms": 143.53692626953125,
+    "peak_mem_bytes": 4697587200,
+    "tokens_per_sec": 55.76581523021289,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 512,
+    "pinned_last_token": true,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 1.0,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  },
+  "prefill_2048_b1": {
+    "median_ms": 865.2777099609375,
+    "p10_ms": 868.5443115234375,
+    "p90_ms": 868.5443115234375,
+    "peak_mem_bytes": 5620139008,
+    "tokens_per_sec": 2366.870169453985,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 2048,
+    "pinned_last_token": false,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 1.0,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  },
+  "prefill_512_b1": {
+    "median_ms": 255.5911407470703,
+    "p10_ms": 255.88812255859375,
+    "p90_ms": 255.88812255859375,
+    "peak_mem_bytes": 4212532224,
+    "tokens_per_sec": 2003.1993225722508,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 512,
+    "pinned_last_token": false,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 1.0,
+      "l1_rel": 0.0,
+      "rmse": 0.0,
+      "reasons": [],
+      "strict_pass": true,
+      "strict_reasons": []
+    }
+  }
+}

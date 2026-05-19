@@ -27,7 +27,10 @@ from transformers.models.qwen3 import modeling_qwen3 as M
 
 from .kernels.swiglu_kimi import run as swiglu_run
 from .kernels.rmsnorm_claude import run as rmsnorm_run
-from .kernels.sdpa_prelude_kimi import run_no_mask as sdpa_prelude_run_no_mask
+try:
+    from .kernels.sdpa_prelude_kimi import run_no_mask as sdpa_prelude_run_no_mask
+except ImportError:
+    sdpa_prelude_run_no_mask = None
 
 
 # Marker attribute on the class so we know whether a patch has been installed.
