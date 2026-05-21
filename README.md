@@ -6,7 +6,7 @@ A focused replication of the [KernelBenchX](https://arxiv.org/abs/2605.04956) pa
 
 Run on two hardwares: an undertrained Blackwell stack (DGX Spark, sm_121, May 2026) and a mature Ampere stack (RTX 3090, sm_86). Same model, same workloads, same harnesses.
 
-The TL;DR (the framing this writeup can defend with a straight face): **on NVIDIA hardware where inductor's heuristics haven't been tuned yet (Blackwell sm_121), an LLM agent can sometimes find a structural rewrite (here, stacking QKV weights into a single cuBLAS GEMM) that the compiler does not attempt at the aten boundary. The integrated benefit is modest: the best agent stack beats `torch.compile`'s default mode by ~2% geomean, beats it with cudagraphs by ~6%, but *loses* to `compile_max_autotune` by ~5%. The headline is more sensitive to baseline configuration than to agent capability.** The structural rewrite is also hardware-specific: it inverts on mature Ampere where the separate-GEMM path is faster. Numbers below are 3-trial median ± MAD with `last_token_ids` pinned across configs and each trial run in a cold subprocess; small MADs (0.04–0.53 ms per workload) mean the headlines aren't noise-driven. See [Known limitations](#known-limitations).
+The TL;DR (the framing this writeup can defend with a straight face): **on undertrained Blackwell (sm_121), an LLM agent can find structural rewrites (here, stacking QKV weights into a single cuBLAS GEMM) that beat `torch.compile`'s `default` mode by ~2.6% geomean. The agent stack loses to `compile_max_autotune` on both hardwares tested (Blackwell -4.6%, 3090 -15%) and loses to every compile mode on 3090 by 9–15%. The agent-vs-compile margin is more sensitive to which compile mode you pick than to agent capability, and the agent stack never beats `compile_max_autotune` on either hardware.** All key configs below are 3-trial median ± MAD with `last_token_ids` pinned across configs and each trial run in a cold subprocess; small MADs (0.04–0.53 ms per workload) mean the headlines aren't noise-driven. See [Known limitations](#known-limitations).
 
 The full experiment narrative — including every false start, methodology bug, and corrected number — lives in [`experiments/EXPERIMENT_LOG.md`](experiments/EXPERIMENT_LOG.md). The README below is the executive summary.
 
@@ -46,34 +46,36 @@ The SDPA-prelude headline number deserves immediate skepticism, applied symmetri
 
 The Blackwell-to-Ampere inversion (3.91× → 0.74×) is real and is the most informative single signal in the experiment: kimi's "stack QKV into one GEMM" is a *structural* decision — closer to algorithmic choice than to codegen quality — and it's hardware-specific. On Ampere's 82 SMs / 936 GB/s, cuBLAS parallelizes three separate small GEMMs better than one wider stacked GEMM, and Ampere's cuBLAS has well-tuned algorithms for those GQA-shape projections.
 
-### 2. `torch.compile` vs eager (geomean across 6 workloads)
+### 2. `torch.compile` vs eager (geomean across 6 workloads, 3-trial replicated)
 
-With `last_token_ids` pinned, `decode_ctx512_b1` now passes correctness across all configs — so all 6 workloads are legitimately in the headline. Single column:
+With `last_token_ids` pinned, `decode_ctx512_b1` now passes correctness across all configs — so all 6 workloads are legitimately in the headline.
 
 | hardware | mode | geomean vs eager (all 6) |
 |---|---|---|
-| Blackwell (sm_121) | default | 1.011× |
-| Blackwell (sm_121) | default + cudagraphs | **0.978×** (worse than no cudagraphs) |
-| Blackwell (sm_121) | max-autotune | **1.089×** |
-| RTX 3090 (sm_86) | default + cudagraphs | **1.067×** (range 0.621–1.967×) |
+| Blackwell (sm_121) | `default` | 1.007× |
+| Blackwell (sm_121) | `default` + cudagraphs | **0.978×** (worse than no cudagraphs) |
+| Blackwell (sm_121) | `max-autotune` | **1.083×** |
+| RTX 3090 (sm_86) | `default` | **1.151×** |
+| RTX 3090 (sm_86) | `default` + cudagraphs | 1.074× (worse than no cudagraphs) |
+| RTX 3090 (sm_86) | `max-autotune` | **1.161×** |
 
 Takeaways:
 - **On Blackwell, `compile_max_autotune` is the stronger baseline** — it wins 1.671× on `decode_ctx512_b1` and 1.242× on `decode_ctx2048_b1`. The earlier writeup only quoted `compile_default`. Reporting both is fairer.
-- **`compile_default + cudagraphs` is *worse* than `compile_default` on Blackwell** (0.978× vs 1.011×). Cudagraphs has a systematic interaction with `decode_ctx2048_b8` — that workload regresses to 0.793× under cudagraphs (and to 0.621× on the 3090). The same pathology recurs on both hardwares.
-- **The compiler still does more on the mature stack.** On Blackwell: inductor refuses `max_autotune_gemm` ("Not enough SMs" — 48 on GB10) so matmuls fall through to cuBLAS regardless of compile mode; LPDDR5X at 273 GB/s caps bandwidth headroom; Triton autotuner heuristics for sm_121 are still adjusting. On Ampere, the heuristics are tuned and the cuBLAS path is fast.
+- **`compile_default + cudagraphs` is *worse* than `compile_default` on both hardwares** (Blackwell 1.007× → 0.978×; 3090 1.151× → 1.074×). Cudagraphs has a systematic interaction with `decode_ctx2048_b8`: that workload regresses to 0.793× under cudagraphs on Blackwell (and to 0.621× on the 3090). Worth flagging as its own observation: the conventional "compile + cudagraphs" recipe degrades on both hardwares we tested.
+- **The compiler still does more on the mature stack.** On Blackwell: inductor refuses `max_autotune_gemm` ("Not enough SMs" — 48 on GB10) so matmuls fall through to cuBLAS regardless of compile mode; LPDDR5X at 273 GB/s caps bandwidth headroom; Triton autotuner heuristics for sm_121 are still adjusting. On Ampere, the heuristics are tuned and the cuBLAS path is fast — `compile_default` alone delivers 15.1%.
 
-### 3. End-to-end best-agent-stack vs `torch.compile` (Blackwell)
+### 3. End-to-end best-agent-stack vs `torch.compile` (both hardwares)
 
-Best agent stack = SwiGLU kimi + RMSNorm-pure claude + SDPA-prelude kimi. 3-trial median, `last_token_ids` pinned, each trial in a cold subprocess. All 6 workloads — no row dropped.
+Best agent stack on Blackwell = SwiGLU kimi + RMSNorm-pure claude + SDPA-prelude kimi. On 3090 only the SwiGLU patch integrates cleanly (RMSNorm hard-faults on sm_86; SDPA prelude lost standalone). All numbers are 3-trial median, `last_token_ids` pinned, each trial in a cold subprocess, all 6 workloads — no row dropped.
 
-| baseline | agent stack vs that baseline (geomean) | range |
+| baseline | Blackwell agent stack | 3090 agent stack (swiglu-only) |
 |---|---|---|
-| eager | **1.033×** | 1.004–1.087× |
-| compile_default | **1.022×** | 0.957–1.147× |
-| compile_default + cudagraphs | **1.056×** | 0.937–1.271× |
-| compile_max_autotune | **0.948× (agent loses)** | 0.651–1.255× |
+| eager | **1.033×** (range 1.004–1.087×) | **0.982×** (regresses; range 0.957–1.009×) |
+| `compile_default` | **1.026×** (+2.6%; range 0.960–1.151×) | **0.854×** (-15%) |
+| `compile_default` + cudagraphs | **1.056×** (+5.6%; range 0.937–1.271×) | 0.915× (-9%) |
+| `compile_max_autotune` | **0.954× (agent LOSES -4.6%)** (range 0.656–1.254×) | **0.846× (agent LOSES -15%)** |
 
-**The agent stack only beats `torch.compile` in `default` mode (with or without cudagraphs). It loses to `compile_max_autotune` by ~5% geomean.** This is the single most important correction relative to earlier drafts: max-autotune is the strongest compile baseline and the agent stack does not beat it.
+**The agent stack never beats `compile_max_autotune` on either hardware.** It only beats `compile_default` on Blackwell, by 2.6%. On 3090 it loses to every compile mode by 9–15%. The match-cgraphs comparison (agent-with-cgraphs vs compile-with-cgraphs) is 1.056× geomean on Blackwell — identical to the non-cgraphs comparison, because the cgraphs-wrapped agent stack patches only swiglu + rmsnorm under capture (see Known limitations: SDPA-prelude is structurally incompatible with HF's mask-builder branch under graph capture).
 
 #### Per-workload speedup vs eager (Blackwell, all 6, 3-trial medians)
 
@@ -86,17 +88,24 @@ Best agent stack = SwiGLU kimi + RMSNorm-pure claude + SDPA-prelude kimi. 3-tria
 | decode_ctx2048_b1 | 32.90 | 1.080× | 1.009× | 0.986× | **1.242×** |
 | decode_ctx2048_b8 | 175.42 | 1.008× | **0.879×** | **0.793×** | **0.803×** |
 
-Per-workload MADs are 0.04–0.53 ms — small relative to any of the gaps above. Variance is *not* what shifted the headline; the methodology corrections (pinning + cold processes) did.
+Per-workload MADs are 0.04–0.53 ms — small relative to any of the gaps above. Variance is *not* what shifted the headline; the methodology corrections (pinning + cold processes) did. The big regressors are on the compile side: `decode_ctx2048_b8` loses 12–21% under every compile mode, mirroring the same shape × batch pathology on the 3090 (0.621× under cudagraphs). The agent stack stays within 1% of eager on the worst-case workload (1.008×).
 
-The big regressors are on the compile side: `decode_ctx2048_b8` loses 12–21% under every compile mode, mirroring the same shape × batch pathology on the 3090 (0.621× under cudagraphs). The agent stack stays within 1% of eager on the worst-case workload (1.008×).
+#### Cross-hardware summary
 
-On 3090, the agent-stack-vs-eager number is incomplete: kimi's RMSNorm hard-faulted in e2e integration (hardcoded `hidden_size=2048`), so the obtainable agent stack covers SwiGLU alone, which **regresses 2% geomean (0.983×, range 0.957–1.009×)**. Compile-default+cudagraphs beats eager 1.067× geomean. The Blackwell agent-stack win does not survive to Ampere.
+| comparison | Blackwell | 3090 |
+|---|---|---|
+| best agent stack vs eager | **1.033×** | 0.982× (regresses) |
+| best agent stack vs `compile_default` | **1.026×** (+2.6%) | **0.854×** (-15%) |
+| best agent stack vs `compile_max_autotune` | **0.954×** (-4.6%) | **0.846×** (-15%) |
+| `compile_max_autotune` vs eager | 1.083× | 1.161× |
+
+The Blackwell agent advantage is ~2.6% vs `compile_default` and disappears entirely against `compile_max_autotune`. On mature hardware, the comparison flips fully: the agent stack loses to every compile mode.
 
 ---
 
 ## What this means
 
-**Compile-maturity hypothesis, supported but narrower than originally framed.** Agent value tracks the gap between the compiler's current heuristics and the achievable performance ceiling on the target hardware. On freshly-supported Blackwell where inductor hasn't been tuned yet, the agent stack delivers a small geomean win over `torch.compile` *in default mode* (with or without cudagraphs) — but it still loses to `compile_max_autotune`. On mature Ampere, the partial agent stack regresses outright.
+**Compile-maturity hypothesis, supported but narrower than originally framed.** Agent value tracks the gap between the compiler's current heuristics and the achievable performance ceiling on the target hardware. On freshly-supported Blackwell where inductor hasn't been tuned yet, the agent stack delivers a small geomean win over `torch.compile` *in default mode* (+2.6%) — but it still loses to `compile_max_autotune` by 4.6%. On mature Ampere, the partial agent stack regresses outright and loses to every compile mode by 9–15%. **Agents help most where compilers are weakest, and the Blackwell agent advantage is ~2.6% vs `compile_default` and disappears entirely against `compile_max_autotune`. On mature hardware, the comparison flips fully.**
 
 **Both inner-loop AND structural agent wins are hardware-dependent.** The pre-registered prediction was that structural composition wins (like QKV stacking) would survive across hardwares because they're "compiler-doesn't-try" arguments. They don't. cuBLAS algorithm selection on a tuned platform can make the agent's bigger-GEMM choice worse, not better.
 
@@ -140,11 +149,11 @@ In this small sample (3 tasks × 2 hardwares × 1 attempt window per cell, with 
 
 Caveats a skeptical reader should weigh before any of the numbers above:
 
-- **Cudagraphs-wrapped agent stack failed to run.** The `eager_all_winners_cgraphs` config crashed with a NoneType in the correctness check — raw CUDAGraph capture's return-tensor plumbing isn't right yet for the patched stack. The `compile_default + cudagraphs` cell worked. Agent + cudagraphs is a known follow-up; we cannot currently claim "agent stack with cudagraphs" numbers.
-- **3-trial vs single-trial mixed methodology.** Agent stack and eager are 3-trial median ± MAD with cold subprocesses per trial. `compile_default` and `compile_max_autotune` baselines come from `baselines/run_compile.py` and are single-trial. Per-workload MADs on the replicated runs are 0.04–0.53 ms (well under any headline delta), so cross-methodology comparison is probably fine, but flag it.
+- **`eager_all_winners_cgraphs` runs only swiglu + rmsnorm under cudagraphs.** The SDPA-prelude patch's `use_kimi` guard interacts with HF's mask-builder under graph capture: a different (4D-mask) branch fires inside capture and the kimi kernel doesn't support that mask layout. The patch is silently disabled in the cgraphs config to preserve correctness. That this stripped-down stack still hits 1.033× vs eager — identical to the full non-cgraphs all-winners — reinforces the Amdahl finding from Stage 7: the SDPA prelude contributes ~0 at e2e level because it's only 5–10% of full forward time.
+- **CUDAGraph capture has a torch 2.12 nightly / Blackwell interaction.** fp64 allocations during correctness checking corrupt the graph pool's internal index tensors, causing later replays to OOB-assert in embedding lookup. Workaround: validate correctness before capture, free ref/out tensors, then capture-and-bench. Also bypass `triton.testing.do_bench`'s L2-cache-clear write-kernel (same crash); use a manual CUDA-event timing loop when `is_cudagraph=True`.
+- **cudagraphs makes `compile_default` *worse* on both hardwares** (Blackwell 1.007× → 0.978×; 3090 1.151× → 1.074×). Specific to `decode_ctx2048_b8`, which compile already regresses on; cudagraphs compounds the regression. Worth flagging as its own observation — the conventional "compile + cudagraphs" recipe is not a free win on the hardware we tested.
 - **decode_ctx512_b1 correctness flag is fixed.** Pinning `last_token_ids` across configs eliminates the bf16-drift argmax flip that previously failed cos_sim. All 6 workloads now legitimately pass and are included in the headline; no "drop a row" caveat.
-- **cudagraphs is OFF on the agent side, ON on one compile baseline.** Because the agent-cudagraphs cell crashed, the closest apples-to-apples is agent-vs-compile-default (1.022×). Agent-vs-compile-default-cudagraphs (1.056×) confounds two things; quote it but note the caveat.
-- **compile_default vs compile_max_autotune.** Earlier writeup quoted `compile_default` only. We now co-quote `compile_max_autotune`, which is the stronger compile baseline on Blackwell (1.089× vs 1.011× geomean vs eager) and beats the agent stack 1.055× geomean (agent loses by 5%).
+- **compile_default vs compile_max_autotune.** Earlier writeup quoted `compile_default` only. We now co-quote `compile_max_autotune`, which is the stronger compile baseline on both hardwares (Blackwell 1.083× vs 1.007× geomean vs eager; 3090 1.161× vs 1.151×) and beats the agent stack on both (Blackwell agent loses 4.6%; 3090 agent loses 15%).
 - **The 3.91× SDPA-prelude headline includes per-launch dispatch overhead.** Inductor's standalone microbench is a Python loop of 8 kernels; the agent kernel is one dispatch. We cannot cleanly separate codegen quality from launch amortization in that ratio.
 - **The RMSNorm "1.043× e2e" win is partly multi-launch eager replacement**, not pure agent-vs-inductor codegen. The codegen-quality slice is ~1.17×; the rest is collapsing 4 eager launches into 1.
 - **Prompts evolved in response to observed agent failures.** Stage 3a SwiGLU prompt did not forbid approximation; Stage 3d added explicit strict-tolerance + no-mutation language; Stage 3e RMSNorm inherited that framing and mentioned a specific inductor behavior; Stage 5a SDPA prelude labeled "three QKV GEMMs" as "the big knob" in the prompt. We cannot cleanly separate "agent figured out X" from "prompt told it to figure out X." A cleaner replication would freeze prompts before any agent runs, or have prompts written by an independent party. See *Prompt evolution and experimenter influence* in EXPERIMENT_LOG.

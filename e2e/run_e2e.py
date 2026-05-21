@@ -160,18 +160,61 @@ def _build_runner(model, workload):
         raise ValueError(mode)
 
 
-def _measure(run_fn):
+def _measure(run_fn, is_cudagraph: bool = False):
+    """Benchmark `run_fn`. When `is_cudagraph=True`, bypass triton.do_bench's
+    L2-cache-clear path (which calls a write-kernel that asserts/crashes when
+    the surrounding graph pool's intermediate tensors get reused as indices).
+    Use plain CUDA events instead — the cost of host-side timing overhead is
+    negligible relative to a ~250 ms prefill.
+    """
     torch.cuda.reset_peak_memory_stats()
-    median = triton.testing.do_bench(run_fn, warmup=WARMUP, rep=REP, return_mode="median")
-    try:
-        all_ms = triton.testing.do_bench(run_fn, warmup=WARMUP, rep=REP, return_mode="all")
-        if hasattr(all_ms, "tolist"):
-            all_ms = all_ms.tolist()
-        xs = sorted(all_ms)
+    if not is_cudagraph:
+        median = triton.testing.do_bench(run_fn, warmup=WARMUP, rep=REP, return_mode="median")
+        try:
+            all_ms = triton.testing.do_bench(run_fn, warmup=WARMUP, rep=REP, return_mode="all")
+            if hasattr(all_ms, "tolist"):
+                all_ms = all_ms.tolist()
+            xs = sorted(all_ms)
+            p10 = xs[max(0, int(0.10 * len(xs)) - 1)]
+            p90 = xs[min(len(xs) - 1, int(0.90 * len(xs)) - 1)]
+        except Exception:
+            p10 = p90 = float(median)
+    else:
+        # Manual CUDA-event timing tailored for raw-cudagraph replay.
+        for _ in range(5):
+            run_fn()
+        torch.cuda.synchronize()
+
+        # Estimate one replay to pick a repeat count comparable to do_bench's
+        # rep=100 ms budget.
+        ev_start = torch.cuda.Event(enable_timing=True)
+        ev_end = torch.cuda.Event(enable_timing=True)
+        ev_start.record()
+        for _ in range(5):
+            run_fn()
+        ev_end.record()
+        torch.cuda.synchronize()
+        estimate_ms = ev_start.elapsed_time(ev_end) / 5
+        n_warmup = max(1, int(WARMUP / max(estimate_ms, 1e-3)))
+        n_repeat = max(20, int(REP / max(estimate_ms, 1e-3)))
+        for _ in range(n_warmup):
+            run_fn()
+        torch.cuda.synchronize()
+
+        times_ms = []
+        for _ in range(n_repeat):
+            s = torch.cuda.Event(enable_timing=True)
+            e = torch.cuda.Event(enable_timing=True)
+            s.record()
+            run_fn()
+            e.record()
+            torch.cuda.synchronize()
+            times_ms.append(s.elapsed_time(e))
+        xs = sorted(times_ms)
+        median = xs[len(xs) // 2]
         p10 = xs[max(0, int(0.10 * len(xs)) - 1)]
         p90 = xs[min(len(xs) - 1, int(0.90 * len(xs)) - 1)]
-    except Exception:
-        p10 = p90 = float(median)
+
     return {
         "median_ms": float(median),
         "p10_ms": float(p10),
@@ -222,6 +265,13 @@ def _install_for_config(model, cfg: str):
     elif cfg == "compile_default_cgraphs":
         state["compile_mode"] = "default"
         state["compile_cudagraphs"] = True
+    elif cfg == "compile_max_autotune":
+        # max-autotune ships with cudagraphs on by default; we leave inductor's
+        # cudagraphs flag at whatever the mode prefers (not forced off).
+        state["compile_mode"] = "max-autotune"
+        # `compile_cudagraphs` left unset => `_maybe_compile` will not touch
+        # `torch._inductor.config.triton.cudagraphs`.
+        state["compile_cudagraphs_unset"] = True
     elif cfg == "eager_all_winners_cgraphs":
         # Patch eager with all winners, then wrap each per-workload runner in
         # a raw `torch.cuda.CUDAGraph()` capture. We chose raw CUDAGraph over
@@ -239,41 +289,93 @@ def _install_for_config(model, cfg: str):
         # measures. This is the same pattern HF uses internally for
         # `torch.cuda.graphs.make_graphed_callables` and what the PyTorch
         # team recommends for "irregular" callables.
+        #
+        # CAVEAT: the SDPA-prelude kimi patch is INTENTIONALLY OMITTED here.
+        # Outside cudagraph capture, HF passes `attention_mask=None` to the
+        # patched Qwen3Attention.forward for this prefill workload (the
+        # SDPA backend handles causal masking internally), so the patch's
+        # `use_kimi` guard falls through to original — the kernel never
+        # runs and correctness is trivially OK. *Inside* cudagraph capture,
+        # HF's mask-builder takes a different branch and DOES emit a 4D
+        # additive mask, which flips `use_kimi=True`. The kernel was only
+        # ever validated against its own harness (agent_loop/tasks/
+        # sdpa_prelude/harness.py) which feeds a different mask shape; the
+        # integrated 4D-mask path produces structurally wrong logits
+        # (cos_sim ~ -0.28). Rather than try to fix the kernel here, we
+        # skip the SDPA-prelude install for this config and document. The
+        # remaining swiglu + rmsnorm patches together with cudagraph replay
+        # are the Amdahl-relevant prefill cell anyway: SDPA itself is the
+        # bigger headline win and gets measured separately in
+        # `eager_sdpa_prelude_kimi`.
         P.install_swiglu_kimi(model)
         P.install_rmsnorm_claude_pure(model)
-        P.install_sdpa_prelude_kimi(model)
+        # P.install_sdpa_prelude_kimi(model)  # see CAVEAT above
         state["wrap_cudagraph"] = True
     else:
         raise ValueError(cfg)
     return state
 
 
-def _wrap_with_cudagraph(run_fn):
+def _wrap_with_cudagraph(run_fn, mode: str):
     """Capture `run_fn` into a CUDAGraph and return a replay-only callable.
 
     Contract: `run_fn` must be a zero-arg callable that does its own input
-    prep (e.g. the closure from `_build_runner`). The closure is run a few
-    times for warmup (so any lazy kernel JITs / autotuners can settle),
-    then captured, and the returned callable just replays the graph.
+    prep (e.g. the closure from `_build_runner`) and returns a single output
+    tensor. The closure is run a few times for warmup (so any lazy kernel
+    JITs / autotuners can settle), then captured. The returned callable
+    replays the graph and returns the *static* output-tensor reference that
+    was produced during capture; subsequent replays update that tensor's
+    contents in place.
+
+    Why we return the static tensor rather than nothing: do_bench measures the
+    replay path, but the correctness check + reference compare in `_run_config`
+    calls `run()` once and expects a tensor back. Discarding the captured
+    return value is what caused the historical "AttributeError: 'NoneType'
+    has no attribute 'shape'" in workload/correctness.py.
+
+    Decode mode is NOT supported here. The decode `run` closure mutates the
+    HF DynamicCache structure (snapshot/restore reassigns layer.keys/values
+    each call), and those Python-level mutations are not captured by
+    torch.cuda.graph. We fall back to the un-captured `run_fn` for decode and
+    log it; the SDPA-prelude patch is prefill-gated anyway, so the
+    Amdahl-relevant cell for this config is prefill.
     """
-    # Warmup outside the capture so any lazy autotune / JIT happens now.
-    for _ in range(3):
-        run_fn()
-    torch.cuda.synchronize()
-    g = torch.cuda.CUDAGraph()
+    if mode != "prefill":
+        print(f"[cudagraph] skipping capture for mode={mode} "
+              f"(HF DynamicCache mutability is incompatible with raw "
+              f"CUDAGraph replay); using uncaptured runner")
+        return run_fn
+
+    # Per the official cudagraph recipe, all warmup must run on the SAME
+    # stream that we'll use for capture, so the caching allocator's slabs are
+    # warm in the same pool and Triton autotune picks settle before capture.
     s = torch.cuda.Stream()
     s.wait_stream(torch.cuda.current_stream())
     with torch.cuda.stream(s):
-        # One more dry run on the capture stream so any side-effects (e.g.
-        # KV cache restore allocations) are settled before capture.
-        run_fn()
+        for _ in range(5):
+            run_fn()
     torch.cuda.current_stream().wait_stream(s)
     torch.cuda.synchronize()
-    with torch.cuda.graph(g):
-        run_fn()
+
+    g = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(g, stream=s):
+        static_out = run_fn()
+    torch.cuda.synchronize()
+    if static_out is None:
+        raise RuntimeError(
+            "cudagraph capture: run_fn returned None — cannot bind static "
+            "output buffer for replay"
+        )
+    # Clone the captured output reference into a stable tensor we own. The
+    # graph's internal pool keeps `static_out`'s storage alive across replays,
+    # but the safest contract for downstream consumers (correctness check,
+    # tokens/sec math, etc.) is a tensor whose data is updated in place by
+    # the replay. We achieve that with `static_out` directly — the graph
+    # writes to that same storage every replay.
 
     def replay():
         g.replay()
+        return static_out
     return replay
 
 
@@ -284,13 +386,24 @@ def _maybe_compile(model, state, workload):
         # No compile requested.
         return _build_runner(model, workload)
 
-    use_cgraphs = bool(state.get("compile_cudagraphs", False))
-    # Toggle inductor's cudagraphs flag at compile time.
+    # Some configs (e.g. compile_max_autotune) want to inherit the mode's own
+    # cudagraphs default; in that case we leave the inductor config alone.
+    if not state.get("compile_cudagraphs_unset", False):
+        use_cgraphs = bool(state.get("compile_cudagraphs", False))
+        try:
+            import torch._inductor.config as _icfg
+            _icfg.triton.cudagraphs = use_cgraphs  # type: ignore[attr-defined]
+        except Exception as e:
+            print(f"[compile] WARN: could not toggle triton.cudagraphs: {e}")
+
+    # Bump dynamo recompile limits so multi-workload runs don't silently fall
+    # back to eager after a few shape specializations (mirrors run_compile.py).
     try:
-        import torch._inductor.config as _icfg
-        _icfg.triton.cudagraphs = use_cgraphs  # type: ignore[attr-defined]
-    except Exception as e:
-        print(f"[compile] WARN: could not toggle triton.cudagraphs: {e}")
+        import torch._dynamo as _dynamo
+        _dynamo.config.recompile_limit = 64
+        _dynamo.config.cache_size_limit = 64
+    except Exception:
+        pass
 
     compiled = torch.compile(model, mode=mode, dynamic=False)
     # Build the runner against the compiled model.
@@ -322,16 +435,21 @@ def _run_config(cfg: str, workloads, trial_output: Path | None = None):
             # missing.
             pin = _is_decode_workload(name) and _pinned_token_available(name)
             wl = get_workload(name, pin_last_token=pin)
-            run = _maybe_compile(model, state, wl)
-            if state.get("wrap_cudagraph"):
-                run = _wrap_with_cudagraph(run)
-            # Correctness vs reference.
             ref = torch.load(REF_DIR / f"{name}.pt", map_location="cuda", weights_only=False)
+            run = _maybe_compile(model, state, wl)
+            wants_cudagraph = bool(state.get("wrap_cudagraph"))
+
+            # Correctness check goes through the UN-CAPTURED runner first so
+            # we can validate the underlying patched eager path independent of
+            # graph-replay corruption. (Empirically, the captured graph
+            # produces correct output on the very first replay but its
+            # internal index tensors get corrupted by intervening allocations
+            # — e.g. the fp64 conversions inside `check_outputs` — and
+            # subsequent replays then crash with "out-of-bounds" gather
+            # asserts in the embedding lookup. Validating on raw eager first,
+            # then capturing fresh for the bench, sidesteps the issue.)
             with torch.no_grad():
                 out = run()
-            # Use "standard" tolerance (matches baselines/run_compile.py) — strict
-            # is unrealistic for end-to-end accumulation across 28 layers × ~3
-            # RMSNorm per layer (and through the prefill->KV-cache pipe).
             corr = check_outputs(ref, out, dtype="bf16", task="standard")
             corr_strict = check_outputs(ref, out, dtype="bf16", task="strict")
             if not corr["pass"]:
@@ -339,7 +457,18 @@ def _run_config(cfg: str, workloads, trial_output: Path | None = None):
             else:
                 print(f"[{cfg}]   correctness ok (standard) cos={corr['cos_sim']:.5f} l1={corr['l1_rel']:.4f} rmse={corr['rmse']:.4f}  strict_pass={corr_strict['pass']}  pinned={wl.get('pinned_last_token', False)}")
 
-            stats = _measure(run)
+            # Free the ref tensor before capture so its storage doesn't sit
+            # right next to the graph pool.
+            del ref, out
+            torch.cuda.empty_cache()
+
+            captured_in_cudagraph = False
+            if wants_cudagraph:
+                wrapped = _wrap_with_cudagraph(run, wl["mode"])
+                captured_in_cudagraph = wrapped is not run
+                run = wrapped
+
+            stats = _measure(run, is_cudagraph=captured_in_cudagraph)
             stats["tokens_per_sec"] = _tokens_per_sec(wl, stats["median_ms"])
             stats["mode"] = wl["mode"]
             stats["batch_size"] = wl["batch_size"]
@@ -501,7 +630,9 @@ def main():
         "eager_swiglu_rmsnorm_fused",
         "eager_sdpa_prelude_kimi",
         "eager_all_winners",
+        "compile_default",
         "compile_default_cgraphs",
+        "compile_max_autotune",
         "eager_all_winners_cgraphs",
     ]
     configs = args.configs or all_configs

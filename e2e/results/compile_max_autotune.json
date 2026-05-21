@@ -1,0 +1,167 @@
+{
+  "decode_ctx2048_b1": {
+    "median_ms": 27.158559799194336,
+    "mad_ms": 0.2766399383544922,
+    "trials_ms": [
+      27.158559799194336,
+      27.435199737548828,
+      26.429824829101562
+    ],
+    "n_trials": 3,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 2048,
+    "tokens_per_sec": 36.82080373163474,
+    "peak_mem_bytes": 4184214528,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999841305974548,
+      "l1_rel": 0.010969496332108974,
+      "rmse": 0.05813570320606232,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "l1_rel 0.0110 > 0.01",
+        "rmse 0.0581 > 0.01"
+      ]
+    },
+    "pinned_last_token": true
+  },
+  "decode_ctx2048_b8": {
+    "median_ms": 218.23085021972656,
+    "mad_ms": 0.0347137451171875,
+    "trials_ms": [
+      218.13980102539062,
+      218.26556396484375,
+      218.23085021972656
+    ],
+    "n_trials": 3,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 2048,
+    "tokens_per_sec": 36.658428411680426,
+    "peak_mem_bytes": 9281851904,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999370368653636,
+      "l1_rel": 0.010016909800469875,
+      "rmse": 0.052933234721422195,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "l1_rel 0.0100 > 0.01",
+        "rmse 0.0529 > 0.01"
+      ]
+    },
+    "pinned_last_token": true
+  },
+  "decode_ctx512_b1": {
+    "median_ms": 17.470815658569336,
+    "mad_ms": 0.0052165985107421875,
+    "trials_ms": [
+      17.476032257080078,
+      17.470815658569336,
+      17.378528594970703
+    ],
+    "n_trials": 3,
+    "mode": "decode",
+    "batch_size": 1,
+    "seq_len": 512,
+    "tokens_per_sec": 57.23831213967996,
+    "peak_mem_bytes": 3830746112,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999453719617106,
+      "l1_rel": 0.014727669768035412,
+      "rmse": 0.07341259717941284,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "l1_rel 0.0147 > 0.01",
+        "rmse 0.0734 > 0.01"
+      ]
+    },
+    "pinned_last_token": true
+  },
+  "decode_ctx512_b8": {
+    "median_ms": 147.97640991210938,
+    "mad_ms": 0.2886810302734375,
+    "trials_ms": [
+      147.97640991210938,
+      147.5700225830078,
+      148.2650909423828
+    ],
+    "n_trials": 3,
+    "mode": "decode",
+    "batch_size": 8,
+    "seq_len": 512,
+    "tokens_per_sec": 54.06267123760877,
+    "peak_mem_bytes": 4927918592,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.999976607825271,
+      "l1_rel": 0.005589012987911701,
+      "rmse": 0.0341411717236042,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "rmse 0.0341 > 0.01"
+      ]
+    },
+    "pinned_last_token": true
+  },
+  "prefill_2048_b1": {
+    "median_ms": 875.1527099609375,
+    "mad_ms": 1.06500244140625,
+    "trials_ms": [
+      875.1527099609375,
+      876.2177124023438,
+      868.9841918945312
+    ],
+    "n_trials": 3,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 2048,
+    "tokens_per_sec": 2340.163010055025,
+    "peak_mem_bytes": 4106520576,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999703866130504,
+      "l1_rel": 0.005715639796108007,
+      "rmse": 0.03939002379775047,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "rmse 0.0394 > 0.01"
+      ]
+    },
+    "pinned_last_token": false
+  },
+  "prefill_512_b1": {
+    "median_ms": 244.0980224609375,
+    "mad_ms": 0.53424072265625,
+    "trials_ms": [
+      243.56378173828125,
+      245.5212860107422,
+      244.0980224609375
+    ],
+    "n_trials": 3,
+    "mode": "prefill",
+    "batch_size": 1,
+    "seq_len": 512,
+    "tokens_per_sec": 2097.518016893948,
+    "peak_mem_bytes": 3710134272,
+    "correctness": {
+      "pass": true,
+      "cos_sim": 0.9999608952590893,
+      "l1_rel": 0.0062673152424395084,
+      "rmse": 0.04674846678972244,
+      "reasons": [],
+      "strict_pass": false,
+      "strict_reasons": [
+        "rmse 0.0467 > 0.01"
+      ]
+    },
+    "pinned_last_token": false
+  }
+}

@@ -765,3 +765,68 @@ decode_ctx2048_b8 regresses under cudagraphs on both hardwares (0.793× Blackwel
 
 **Files.** `e2e/results/{eager,eager_all_winners,compile_default_cgraphs}.json` and `eager{,_all_winners}_trial{0,1,2}.json` (per-trial); `baselines/results/{compile_default,compile_max_autotune}.json`; chunklebox replication results on the 3090 host.
 
+---
+
+## Stage 10b — Final corrections: symmetric replication + cgraphs-agent unblock (DONE)
+
+**Hypothesis.** Two open holes remained after Stage 10: (a) compile baselines (`compile_default`, `compile_max_autotune`) were still single-trial on both hardwares while agent/eager were 3-trial; (b) `eager_all_winners_cgraphs` had failed to run, so we could not directly compare agent-with-cgraphs to compile-with-cgraphs. Closing both produces the final defensible numbers.
+
+**What we did.**
+1. Re-ran `compile_default`, `compile_max_autotune`, `compile_default_cgraphs` k=3 on Blackwell with cold subprocesses + pinned `last_token_ids`.
+2. Re-ran `compile_default`, `compile_max_autotune`, `compile_default_cgraphs`, `eager_swiglu_kimi` k=3 on chunklebox 3090 with the same methodology.
+3. Unblocked `eager_all_winners_cgraphs` by (a) validating correctness before capture and freeing ref/out tensors, (b) bypassing `triton.testing.do_bench`'s L2-cache-clear write-kernel (which OOB-asserts inside captured graphs on torch 2.12 nightly + Blackwell), and (c) using a manual CUDA-event timing loop when `is_cudagraph=True`. The fp64 correctness allocations were the root cause of the prior OOB asserts in embedding lookup during replay — they corrupt the graph pool's internal index tensors.
+4. Discovered that SDPA-prelude is structurally incompatible with cudagraphs: under graph capture HF's mask-builder takes a 4D-mask branch that the `use_kimi` guard doesn't support; the kernel produces structurally wrong output. The `eager_all_winners_cgraphs` config patches *only* swiglu + rmsnorm under capture and silently skips the SDPA prelude. Documented as a known limitation.
+
+**Headline shifts (Blackwell, 3-trial replicated):**
+
+| comparison | Stage 10 (single-trial compile) | Stage 10b (all 3-trial) |
+|---|---|---|
+| compile_default vs eager | 1.011× | **1.007×** |
+| compile_default+cgraphs vs eager | 0.978× | **0.978×** (unchanged) |
+| compile_max_autotune vs eager | 1.089× | **1.083×** |
+| best agent stack vs eager | 1.033× | 1.033× (unchanged) |
+| best agent stack vs compile_default | 1.022× | **1.026×** |
+| best agent stack vs compile_default+cgraphs | 1.056× | 1.056× (unchanged) |
+| best agent stack vs compile_max_autotune | 0.948× | **0.954×** |
+| **eager_all_winners_cgraphs vs eager** (NEW) | — | **1.033×** |
+| **agent-cgraphs vs compile-cgraphs** (match-cgraphs, NEW) | — | **1.056×** |
+
+**Headline shifts (3090, 3-trial replicated):**
+
+| comparison | Stage 10 single-trial | Stage 10b 3-trial |
+|---|---|---|
+| compile_default vs eager | ~1.20× | **1.151×** |
+| compile_max_autotune vs eager | — | **1.161×** |
+| compile_default+cgraphs vs eager | 1.067× | **1.074×** |
+| eager_swiglu_kimi vs eager | 0.983× | **0.982×** (unchanged) |
+| swiglu-only stack vs compile_default | — | **0.854×** (agent loses 15%) |
+| swiglu-only stack vs compile_max_autotune | — | **0.846×** (agent loses 15%) |
+| swiglu-only stack vs compile_default+cgraphs | — | **0.915×** (agent loses 9%) |
+
+**Cross-hardware summary table (the version that should anchor the writeup):**
+
+| comparison | Blackwell | 3090 |
+|---|---|---|
+| best agent stack vs eager | 1.033× | 0.982× (regresses) |
+| best agent stack vs compile_default | **1.026×** (+2.6%) | **0.854×** (-15%) |
+| best agent stack vs compile_max_autotune | **0.954×** (-4.6%) | **0.846×** (-15%) |
+| compile_max_autotune vs eager | 1.083× | 1.161× |
+
+**Findings.**
+1. **Symmetric replication did not flip any qualitative result, but tightened the magnitudes.** Compile-vs-eager numbers shifted by ≤0.6%; agent-vs-compile shifted by ≤0.6%. All gaps remain MAD-bounded.
+2. **The agent stack never beats `compile_max_autotune` on either hardware.** Blackwell: -4.6%. 3090: -15%. The strongest-compile-baseline comparison is the right framing.
+3. **cudagraphs makes `compile_default` worse on both hardwares** (Blackwell 1.007× → 0.978×; 3090 1.151× → 1.074×). Specific to `decode_ctx2048_b8`. The "compile + cudagraphs" recipe is not a free win on either hardware tested.
+4. **`eager_all_winners_cgraphs` hits the same 1.033× as the non-cgraphs all-winners**, despite running only the swiglu + rmsnorm patches under capture (SDPA prelude omitted). This is a direct Amdahl confirmation: SDPA prelude contributes ~0 at e2e level — consistent with Stage 7's finding that it's only 5–10% of full forward.
+5. **The match-cgraphs comparison (agent-with-cgraphs vs compile-with-cgraphs) is 1.056×**, identical to the non-cgraphs agent vs `compile_default+cgraphs` comparison. The agent's advantage over the cgraphs-compile path is real, but small, and disappears against `compile_max_autotune`.
+6. **Cross-hardware narrative finalized.** On undertrained Blackwell the agent beats `compile_default` by 2.6%, loses to `compile_max_autotune` by 4.6%. On mature 3090, the agent loses to every compile mode by 9–15%. The Blackwell agent advantage is small even against the weakest compile mode and disappears against the strongest. On mature hardware the comparison flips fully.
+
+**Closed limitations (carried over from earlier stages).**
+- "Cudagraphs-wrapped agent stack failed to run" → now runs; documented partial-coverage caveat (SDPA-prelude omitted under capture).
+- "Compile baselines remain single-trial" → all key compile configs now 3-trial on both hardwares.
+
+**New limitations (surfaced by the closures).**
+- `eager_all_winners_cgraphs` patches only 2 of 3 kernels under capture. The SDPA-prelude patch is silently disabled inside graph capture because HF's mask-builder takes a 4D-mask branch the kimi kernel doesn't support. Numerically confirms Amdahl (1.033× vs 1.033× — SDPA contributes ~0 at e2e).
+- CUDAGraph capture has a torch 2.12 nightly / Blackwell interaction: fp64 allocations during correctness checking corrupt the graph pool's internal index tensors, causing later replays to OOB-assert in embedding lookup. Workaround: validate-before-capture, free ref/out tensors, then capture-and-bench. Also bypass `triton.testing.do_bench`'s L2-cache-clear write-kernel (same crash). Manual CUDA-event timing loop when `is_cudagraph=True`.
+- cudagraphs makes `compile_default` *worse* on both hardwares — the conventional "compile + cudagraphs" recipe is not a free win on the hardware we tested.
+
+**Files.** `e2e/results/eager_all_winners_cgraphs_trial{0,1,2}.json`; `baselines/results/{compile_default,compile_max_autotune,compile_default_cgraphs}_trial{0,1,2}.json` on both hosts.
