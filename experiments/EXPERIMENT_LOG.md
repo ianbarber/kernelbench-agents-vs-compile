@@ -593,7 +593,7 @@ The SDPA-prelude gap is striking: 22× faster on Ampere. Driven by the 3 QKV cuB
 
 **Code-review prediction validated.** The DGX Spark code review flagged kimi's SDPA prelude as "shape-brittle, with hardcoded `SEQ=512`, `HIDDEN=2048`" and worried about Blackwell-bandwidth assumptions. It also flagged kimi's stack-then-GEMM as "bandwidth this design can't afford on Blackwell unified memory" (wrong on Blackwell, **right on Ampere**). The reviewer's intuition that this kernel wouldn't generalize was correct.
 
-**Brittleness surfaced in e2e integration.** Kimi's 3090 RMSNorm kernel passed strict standalone correctness on its trained shape `(1, 512, 2048)` but **hard-faulted with `cudaErrorIllegalAddress` in e2e integration**, where the model also calls RMSNorm at `(B, S, head_dim=128)` for q_norm/k_norm in attention. Hardcoded hidden_size=2048. Same brittleness pattern the code review identified; same problem, surfaced on a new hardware where the shape distribution differs slightly. The Blackwell claude kernel handles both shapes; kimi's doesn't.
+**Brittleness surfaced in e2e integration.** Kimi's 3090 RMSNorm kernel passed strict standalone correctness on its trained shape `(1, 512, 2048)` but **hard-faulted with `cudaErrorIllegalAddress` in e2e integration**, where the model also calls RMSNorm at `(B, S, head_dim=128)` for q_norm/k_norm in attention. At the time we attributed this to a hardcoded `hidden_size=2048`. **Subsequent correction (Stage 10b):** the multi-shape harness extension showed kimi's kernel actually passes all three model-internal shapes on Blackwell sm_121. The 3090 hard-fault is therefore sm_86-specific — probably shared-memory limits or launch-grid choices — not the constants-brittleness story this section originally told. Keeping the original framing here as a historical artifact; see Stage 10b for the corrected interpretation.
 
 **E2E integration on 3090 (incomplete due to kimi RMSNorm brittleness):**
 
@@ -671,7 +671,7 @@ A 3090 cross-hardware run is on the table to test this directly — if compile c
 **On RTX 3090 (sm_86, mature Ampere stack):**
 - Compile vs eager: ~1.20× geomean (`compile_default`, all 6) / ~1.09× (5 excl decode_ctx512_b1).
 - Agent SDPA prelude standalone **flips from 3.91× win to 0.74× loss**. The QKV-stacking trick that beat inductor on Blackwell loses on Ampere because Ampere's cuBLAS parallelizes 3 small GEMMs better than 1 wide stacked GEMM. Both inner-loop AND structural agent wins are hardware-dependent.
-- Kimi's 3090 RMSNorm passes standalone, hard-faults in e2e integration (hardcoded `hidden_size=2048` breaks on q_norm/k_norm at `head_dim=128`). Best obtainable agent stack on 3090 is SwiGLU-only (~1.012× geomean).
+- Kimi's 3090 RMSNorm passes standalone, hard-faults in e2e integration. (Originally attributed to hardcoded `hidden_size=2048`; Stage 10b's multi-shape harness disproved that mechanism — the fault is sm_86-specific.) Best obtainable agent stack on 3090 is SwiGLU-only (~1.012× geomean).
 - **Compile beats the obtainable agent stack on Ampere by a wide margin regardless of which geomean (all-6 or 5) you use.**
 
 **Methodology lessons that should be foregrounded:**
@@ -772,8 +772,8 @@ decode_ctx2048_b8 regresses under cudagraphs on both hardwares (0.793× Blackwel
 **Hypothesis.** Two open holes remained after Stage 10: (a) compile baselines (`compile_default`, `compile_max_autotune`) were still single-trial on both hardwares while agent/eager were 3-trial; (b) `eager_all_winners_cgraphs` had failed to run, so we could not directly compare agent-with-cgraphs to compile-with-cgraphs. Closing both produces the final defensible numbers.
 
 **What we did.**
-1. Re-ran `compile_default`, `compile_max_autotune`, `compile_default_cgraphs` k=3 on Blackwell with cold subprocesses + pinned `last_token_ids`.
-2. Re-ran `compile_default`, `compile_max_autotune`, `compile_default_cgraphs`, `eager_swiglu_kimi` k=3 on chunklebox 3090 with the same methodology.
+1. Re-ran `compile_default` and `compile_max_autotune` k=3 on Blackwell with cold subprocesses + pinned `last_token_ids`. `compile_default_cgraphs` was *not* put through the k=3 pipeline — it remains single-trial on both hardwares. Documented as a known limitation; rerunning is on the list but unlikely to change the picture given the MAD already characterized on adjacent configs.
+2. Re-ran `compile_default`, `compile_max_autotune`, and `eager_swiglu_kimi` k=3 on chunklebox 3090 with the same methodology. `compile_default_cgraphs` on the 3090 also stayed single-trial.
 3. Unblocked `eager_all_winners_cgraphs` by (a) validating correctness before capture and freeing ref/out tensors, (b) bypassing `triton.testing.do_bench`'s L2-cache-clear write-kernel (which OOB-asserts inside captured graphs on torch 2.12 nightly + Blackwell), and (c) using a manual CUDA-event timing loop when `is_cudagraph=True`. The fp64 correctness allocations were the root cause of the prior OOB asserts in embedding lookup during replay — they corrupt the graph pool's internal index tensors.
 4. Discovered that SDPA-prelude is structurally incompatible with cudagraphs: under graph capture HF's mask-builder takes a 4D-mask branch that the `use_kimi` guard doesn't support; the kernel produces structurally wrong output. The `eager_all_winners_cgraphs` config patches *only* swiglu + rmsnorm under capture and silently skips the SDPA prelude. Documented as a known limitation.
 
@@ -782,7 +782,7 @@ decode_ctx2048_b8 regresses under cudagraphs on both hardwares (0.793× Blackwel
 | comparison | Stage 10 (single-trial compile) | Stage 10b (all 3-trial) |
 |---|---|---|
 | compile_default vs eager | 1.011× | **1.007×** |
-| compile_default+cgraphs vs eager | 0.978× | **0.978×** (unchanged) |
+| compile_default+cgraphs vs eager | 0.978× (single trial) | 0.978× (still single trial — see "What we did" #1) |
 | compile_max_autotune vs eager | 1.089× | **1.083×** |
 | best agent stack vs eager | 1.033× | 1.033× (unchanged) |
 | best agent stack vs compile_default | 1.022× | **1.026×** |
@@ -797,7 +797,7 @@ decode_ctx2048_b8 regresses under cudagraphs on both hardwares (0.793× Blackwel
 |---|---|---|
 | compile_default vs eager | ~1.20× | **1.151×** |
 | compile_max_autotune vs eager | — | **1.161×** |
-| compile_default+cgraphs vs eager | 1.067× | **1.074×** |
+| compile_default+cgraphs vs eager | 1.067× (single trial) | 1.074× (still single trial) |
 | eager_swiglu_kimi vs eager | 0.983× | **0.982×** (unchanged) |
 | swiglu-only stack vs compile_default | — | **0.854×** (agent loses 15%) |
 | swiglu-only stack vs compile_max_autotune | — | **0.846×** (agent loses 15%) |
@@ -829,4 +829,4 @@ decode_ctx2048_b8 regresses under cudagraphs on both hardwares (0.793× Blackwel
 - CUDAGraph capture has a torch 2.12 nightly / Blackwell interaction: fp64 allocations during correctness checking corrupt the graph pool's internal index tensors, causing later replays to OOB-assert in embedding lookup. Workaround: validate-before-capture, free ref/out tensors, then capture-and-bench. Also bypass `triton.testing.do_bench`'s L2-cache-clear write-kernel (same crash). Manual CUDA-event timing loop when `is_cudagraph=True`.
 - cudagraphs makes `compile_default` *worse* on both hardwares — the conventional "compile + cudagraphs" recipe is not a free win on the hardware we tested.
 
-**Files.** `e2e/results/eager_all_winners_cgraphs_trial{0,1,2}.json`; `baselines/results/{compile_default,compile_max_autotune,compile_default_cgraphs}_trial{0,1,2}.json` on both hosts.
+**Files.** Aggregates: `e2e/results/{eager,eager_all_winners,compile_default,compile_max_autotune,compile_default_cgraphs,eager_all_winners_cgraphs}.json`. Per-trial inputs (k=3): `e2e/results/{eager,eager_all_winners,compile_default,compile_max_autotune}_trial{0,1,2}.json`. `compile_default_cgraphs` and `eager_all_winners_cgraphs` aggregates are single-trial only (no `_trial*.json` files). Same structure on chunklebox 3090.
